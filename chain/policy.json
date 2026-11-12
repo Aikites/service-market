@@ -1,0 +1,290 @@
+{
+  "$schema": "./schemas/policy.schema.json",
+  "schema_version": 1,
+  "project": {
+    "name": "trading-site",
+    "mode": "bid_factory",
+    "timezone": "Asia/Shanghai",
+    "default_branch": "main",
+    "task_branch_prefix": "chain/",
+    "worktree_dir": ".worktrees"
+  },
+  "factory": {
+    "execution": "serial",
+    "description": "任务卡即标书：Builder 只按标书施工，验收按标书判定，模型之间不直接对话，全部交接经文件完成。",
+    "contracts": {
+      "tasks_dir": "tasks",
+      "task_schema": "chain/schemas/task.schema.json",
+      "invariants_file": "docs/invariants.json",
+      "invariants_doc": "docs/invariants.md",
+      "state_schema": "chain/schemas/state.schema.json",
+      "event_schema": "chain/schemas/event.schema.json"
+    },
+    "handoff": {
+      "state_file": "chain/state.json",
+      "events_file": "chain/events.jsonl",
+      "reports_dir": "reports",
+      "attempt_dir_pattern": "reports/{task_id}/attempt-{nn}"
+    },
+    "workstations": [
+      {
+        "id": "plan",
+        "provider": "deepseek",
+        "model": "deepseek-reasoner",
+        "inputs": ["requirement", "docs/invariants.json", "file_tree"],
+        "outputs": ["tasks/{task_id}.md"],
+        "gate": "human_confirm"
+      },
+      {
+        "id": "build",
+        "provider": "deepseek",
+        "model": "deepseek-chat",
+        "inputs": ["task_card", "docs/invariants.json", "file_tree", "allowed_paths"],
+        "outputs": ["code_diff"],
+        "gate": "scope_and_test_integrity"
+      },
+      {
+        "id": "i18n",
+        "provider": "deepseek",
+        "model": "deepseek-chat",
+        "inputs": ["locales/zh-CN.json", "changed_keys"],
+        "outputs": ["locales/zh-CN.json"],
+        "gate": "key_parity"
+      },
+      {
+        "id": "verify",
+        "provider": null,
+        "model": null,
+        "inputs": ["code_diff", "required_tests"],
+        "outputs": ["reports/{task_id}/attempt-{nn}/verify.json"],
+        "gate": "ci"
+      },
+      {
+        "id": "rca",
+        "provider": "deepseek",
+        "model": "deepseek-reasoner",
+        "inputs": ["failure_log", "code_diff", "task_card"],
+        "outputs": ["reports/{task_id}/attempt-{nn}/rca.json"],
+        "gate": "reproduction_confirmed"
+      },
+      {
+        "id": "review",
+        "provider": "deepseek",
+        "model": "deepseek-reasoner",
+        "inputs": ["code_diff", "ci_summary", "task_card", "docs/invariants.json"],
+        "outputs": ["reports/{task_id}/attempt-{nn}/review.json"],
+        "gate": "schema_and_verdict"
+      },
+      {
+        "id": "merge",
+        "provider": null,
+        "model": null,
+        "inputs": ["merge_gate"],
+        "outputs": ["merged_commit"],
+        "gate": "human_approval"
+      }
+    ]
+  },
+  "models": {
+    "router_locked": true,
+    "require_single_provider": true,
+    "provider": "deepseek",
+    "routes": {
+      "plan": {
+        "provider": "deepseek",
+        "model": "deepseek-reasoner",
+        "purpose": "planner",
+        "temperature": 0.2,
+        "max_output_tokens": 4000
+      },
+      "build": {
+        "provider": "deepseek",
+        "model": "deepseek-chat",
+        "purpose": "builder",
+        "temperature": 0.1,
+        "max_output_tokens": 8000
+      },
+      "i18n": {
+        "provider": "deepseek",
+        "model": "deepseek-chat",
+        "purpose": "i18n",
+        "temperature": 0,
+        "max_output_tokens": 4000
+      },
+      "rca": {
+        "provider": "deepseek",
+        "model": "deepseek-reasoner",
+        "purpose": "rca",
+        "temperature": 0,
+        "max_output_tokens": 4000
+      },
+      "review": {
+        "provider": "deepseek",
+        "model": "deepseek-reasoner",
+        "purpose": "reviewer",
+        "temperature": 0,
+        "max_output_tokens": 4000
+      }
+    },
+    "rca": {
+      "require_reproduction": true,
+      "require_evidence": true,
+      "reproduction_must_fail_on_base": true,
+      "min_confidence": 0.6,
+      "provider_must_differ_from_builder": false,
+      "compensation": "全链路同源 DeepSeek，无法异源评审；以强制复现命令 + 证据路径 + 人工确认替代异源约束。"
+    },
+    "review": {
+      "output_format": "json_schema",
+      "bind_to": "diff_hash",
+      "forbid_truncated_approval": true,
+      "min_confidence": 0.6
+    }
+  },
+  "budget": {
+    "currency": "CNY",
+    "decimals": 6,
+    "task": {
+      "max_cost_cny": 8,
+      "max_model_calls": 12,
+      "max_input_tokens": 120000,
+      "max_output_tokens": 30000
+    },
+    "daily": {
+      "max_cost_cny": 8,
+      "reset_at": "00:00",
+      "timezone": "Asia/Shanghai"
+    },
+    "phase_share": {
+      "plan": 0.05,
+      "build": 0.55,
+      "i18n": 0.05,
+      "rca": 0.15,
+      "review": 0.2
+    },
+    "circuit_breaker": {
+      "single_call_max_cny": 2.0,
+      "calls_per_minute_max": 10,
+      "refuse_when_over_budget": true,
+      "estimate_before_call": true,
+      "stop_on_repeated_failure": 3
+    }
+  },
+  "retry": {
+    "max_attempts_per_task": 2,
+    "max_builder_rounds": 2,
+    "max_review_rounds": 1,
+    "max_infra_retries_per_step": 2,
+    "no_progress_streak_limit": 2,
+    "diff_similarity_threshold": 0.9,
+    "reset_to_base_each_attempt": true,
+    "rerun_full_verify_after_fix": true
+  },
+  "timeouts": {
+    "step_s": 120,
+    "model_call_s": 120,
+    "heartbeat_s": 30,
+    "lock_ttl_s": 90
+  },
+  "protected_paths": [
+    ".github/**",
+    ".githooks/**",
+    "chain/**",
+    "reports/**",
+    "tasks/**",
+    "docs/invariants.md",
+    "docs/invariants.json",
+    "scripts/verify.mjs",
+    "package.json",
+    "pnpm-lock.yaml",
+    "tsconfig.json",
+    "tsconfig.*.json",
+    "vitest.config.*",
+    "eslint.config.*",
+    ".eslintrc*",
+    "migrations/**"
+  ],
+  "protected_paths_policy": {
+    "on_touch": "block_and_require_human",
+    "allow_delete_tests": false,
+    "allow_skip_markers": false,
+    "allow_verify_script_change": false,
+    "require_codeowners": true,
+    "fail_closed": true
+  },
+  "scope": {
+    "enforce_allowed_paths": true,
+    "use_untracked_files": true,
+    "ignore_whitespace_only_diff": true,
+    "always_forbidden_paths": [
+      ".env",
+      ".env.*",
+      "secrets/**",
+      "**/*.pem",
+      "**/*.key",
+      "chain/**",
+      "reports/**"
+    ]
+  },
+  "acceptance": {
+    "verify_entry": "node scripts/verify.mjs",
+    "verify_package_script": "pnpm verify",
+    "stages": [
+      "schema",
+      "scope",
+      "test_integrity",
+      "typecheck",
+      "lint",
+      "unit",
+      "invariant",
+      "i18n_parity",
+      "build",
+      "security"
+    ],
+    "local_gate": "git-hook",
+    "remote_gate": "github-actions",
+    "require_ci_run_id_for_merge": true,
+    "require_local_green_before_ci": true,
+    "require_invariant_tests": true,
+    "block_on_truncated_review": true,
+    "local_result_is_not_merge_authority": true
+  },
+  "git": {
+    "use_worktrees": true,
+    "push_strategy": "pr_only",
+    "require_clean_worktree": true,
+    "commit_trailer_key": "Chain-Run-Id",
+    "protected_branches": ["main"]
+  },
+  "i18n": {
+    "enabled": true,
+    "trigger_file": "locales/zh-CN.json",
+    "locale_dir": "locales",
+    "source_locale": "zh-CN",
+    "allow_paths": ["locales/**"],
+    "incremental": true,
+    "state_file": "locales/.i18n-state.json",
+    "require_key_parity": true
+  },
+  "observability": {
+    "runs_file": "chain/runs.jsonl",
+    "pricing_file": "chain/pricing.json",
+    "costs_dir": "chain/costs",
+    "rotate_monthly": true,
+    "redaction_version": "v1",
+    "record_usage_source": true,
+    "reconcile_tolerance": 0.02
+  },
+  "exit_codes": {
+    "ok": 0,
+    "waiting_human": 2,
+    "budget_exceeded": 3,
+    "infra_error": 4,
+    "review_blocked": 5,
+    "verify_exhausted": 6,
+    "lock_conflict": 7,
+    "state_corrupt": 8,
+    "invalid_config": 9
+  }
+}
+

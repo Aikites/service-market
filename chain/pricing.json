@@ -1,0 +1,38 @@
+{
+  "$schema": "./schemas/pricing.schema.json",
+  "schema_version": 1,
+  "default_currency": "CNY",
+  "unit_basis": "per_1m_tokens",
+  "source": "https://api-docs.deepseek.com/quick_start/pricing",
+  "note": "静态模板，单价未与官方价格页核对（verified=false）。核对后置 true 并填写 verified_at。runs.jsonl 只引用 pricing_version，本文件后续变动不会重算历史成本。",
+  "fallback": {
+    "strategy": "reject_call",
+    "note": "模型不在价格表内时拒绝调用，禁止按 0 成本记账。"
+  },
+  "pricing_versions": [
+    {
+      "pricing_version": "2026-11-cny-01",
+      "effective_from": "2026-11-01T00:00:00.000Z",
+      "currency": "CNY",
+      "provider": "deepseek",
+      "verified": false,
+      "models": [
+        {
+          "model": "deepseek-chat",
+          "model_version": "undetermined",
+          "input_cache_hit_per_1m": 0.5,
+          "input_cache_miss_per_1m": 2.0,
+          "output_per_1m": 8.0
+        },
+        {
+          "model": "deepseek-reasoner",
+          "model_version": "undetermined",
+          "input_cache_hit_per_1m": 1.0,
+          "input_cache_miss_per_1m": 4.0,
+          "output_per_1m": 16.0
+        }
+      ]
+    }
+  ]
+}
+

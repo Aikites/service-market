@@ -1,0 +1,41 @@
+{
+  "bid_id": "BID-GAMMA-01",
+  "agent_id": "agent-gamma",
+  "provider": "deepseek",
+  "model": "deepseek-chat",
+  "quote_cny": 4,
+  "delivery_days": 12,
+  "estimate": {
+    "input_tokens": 60000,
+    "output_tokens": 12000,
+    "cache_hit_ratio": 0.1
+  },
+  "touched_paths": [
+    "index.html",
+    "src/**"
+  ],
+  "plan": {
+    "milestones": [
+      {
+        "name": "先出可用版本",
+        "days": 8,
+        "deliverable": "index.html 雏形"
+      },
+      {
+        "name": "再补数据结构",
+        "days": 4,
+        "deliverable": "src/bid"
+      }
+    ],
+    "risks": [
+      "方案粗糙"
+    ],
+    "test_plan": [
+      "基础用例"
+    ],
+    "invariants": [
+      "INV-001"
+    ]
+  },
+  "submitted_at": "2026-11-12T00:00:00.000Z"
+}

@@ -1,0 +1,23 @@
+#!/bin/sh
+# .githooks/pre-commit —— 提交前最小闸门（schema + invariant，约 0.1s）
+#
+# 只跑确定性的配置/不变量校验，不跑 8 阶段全量，避免拖慢日常提交；
+# 全量由 pre-push 与 CI（npm run test:integrity）负责。
+# 需要临时绕过：SKIP_FACTORY_HOOKS=1 git commit ...
+set -e
+
+if [ "${SKIP_FACTORY_HOOKS:-0}" = "1" ]; then
+  echo "[pre-commit] SKIP_FACTORY_HOOKS=1，跳过工厂校验（本提交未经质检）"
+  exit 0
+fi
+
+if ! command -v node >/dev/null 2>&1; then
+  echo "[pre-commit] 找不到 node，无法校验；请安装 Node 22+ 后再提交" >&2
+  exit 1
+fi
+
+# Git for Windows 下控制台默认 GBK，Node 输出 UTF-8 会显示成乱码；切代码页不影响校验结果
+if command -v chcp.com >/dev/null 2>&1; then chcp.com 65001 >/dev/null 2>&1 || true; fi
+
+node scripts/verify.mjs --stages schema,invariant
+

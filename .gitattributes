@@ -1,0 +1,14 @@
+# 统一行尾：Windows 本地与 Linux CI 必须产出同一份字节，否则 diff / hook 会假失败
+* text=auto
+*.mjs text eol=lf
+*.js text eol=lf
+*.json text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.md text eol=lf
+.githooks/* text eol=lf
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.ico binary
+

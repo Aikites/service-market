@@ -1,0 +1,38 @@
+# ---- 依赖 ----
+node_modules/
+# 锁文件不入库 → 因此 CI 不能直接用 npm ci（见 .github/workflows/ci.yml 里的说明）。
+# 将来需要可复现依赖时：删掉下面这行、提交 package-lock.json，再把 CI 的安装步骤换成 npm ci。
+package-lock.json
+
+# ---- 日志、测试临时文件 ----
+# 只忽略仓库根目录的 .txt：写成 *.txt 会把 docs/ 下的正文一起吞掉
+/*.txt
+*.log
+_v*.mjs
+_*.bak
+
+# ---- 验生产物 ----
+# 每轮重新生成，CI 通过 artifact 留存，不入库；确实要入库用 git add -f
+scope/integrity-report.json
+
+# ---- 环境变量 ----
+.env
+.env.local
+!.env.example
+
+# ---- Prisma ----
+prisma/migrations/*.db
+prisma/dev.db
+
+# ---- 系统缓存 ----
+.DS_Store
+Thumbs.db
+
+# ---- IDE ----
+.idea/
+.vscode/
+*.swp
+
+# ---- 工作树 ----
+.worktrees/
+

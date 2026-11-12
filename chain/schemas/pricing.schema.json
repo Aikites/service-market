@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://trading-site.invalid/chain/schemas/pricing.schema.json",
+  "title": "chain/pricing.json",
+  "description": "版本化单价表（CNY/1M tokens）。历史 runs.jsonl 只引用 pricing_version，不随本文件变动重算。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "default_currency",
+    "unit_basis",
+    "source",
+    "fallback",
+    "pricing_versions"
+  ],
+  "properties": {
+    "$schema": { "type": "string", "minLength": 1 },
+    "schema_version": { "const": 1 },
+    "default_currency": { "const": "CNY" },
+    "unit_basis": { "const": "per_1m_tokens" },
+    "source": { "type": "string", "minLength": 1, "maxLength": 300 },
+    "note": { "type": "string", "maxLength": 1000 },
+    "fallback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["strategy"],
+      "properties": {
+        "strategy": {
+          "type": "string",
+          "enum": ["reject_call", "use_max_price"]
+        },
+        "note": { "type": "string", "maxLength": 500 }
+      }
+    },
+    "pricing_versions": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/version" }
+    }
+  },
+  "$defs": {
+    "version": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pricing_version",
+        "effective_from",
+        "currency",
+        "provider",
+        "verified",
+        "models"
+      ],
+      "properties": {
+        "pricing_version": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-cny-[0-9]{2}$"
+        },
+        "effective_from": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}Z$"
+        },
+        "currency": { "const": "CNY" },
+        "provider": { "type": "string", "enum": ["deepseek"] },
+        "verified": {
+          "type": "boolean",
+          "description": "false 表示未与官方价格页核对；verify 阶段应给出告警。"
+        },
+        "verified_at": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}Z$"
+            },
+            { "type": "null" }
+          ],
+          "description": "人工核对官方价格页的时间；verified=true 时必填（scripts/verify.mjs 强制校验）。"
+        },
+        "verified_by": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "maxLength": 80,
+          "description": "核对人标识，只记「谁声称核对」，不证明单价正确。"
+        },
+        "models": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/modelPrice" }
+        }
+      }
+    },
+    "modelPrice": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "model",
+        "input_cache_hit_per_1m",
+        "input_cache_miss_per_1m",
+        "output_per_1m"
+      ],
+      "properties": {
+        "model": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "model_version": { "type": ["string", "null"], "maxLength": 40 },
+        "input_cache_hit_per_1m": { "type": "number", "minimum": 0 },
+        "input_cache_miss_per_1m": { "type": "number", "minimum": 0 },
+        "output_per_1m": { "type": "number", "minimum": 0 }
+      }
+    }
+  }
+}

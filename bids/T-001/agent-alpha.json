@@ -1,0 +1,49 @@
+{
+  "bid_id": "BID-ALPHA-01",
+  "agent_id": "agent-alpha",
+  "provider": "deepseek",
+  "model": "deepseek-chat",
+  "quote_cny": 6.2,
+  "delivery_days": 5,
+  "estimate": {
+    "input_tokens": 90000,
+    "output_tokens": 20000,
+    "cache_hit_ratio": 0.3
+  },
+  "touched_paths": [
+    "index.html",
+    "src/**"
+  ],
+  "plan": {
+    "milestones": [
+      {
+        "name": "数据结构与接口",
+        "days": 2,
+        "deliverable": "src/bid/*.mjs"
+      },
+      {
+        "name": "页面与联调",
+        "days": 2,
+        "deliverable": "index.html"
+      },
+      {
+        "name": "测试与文档",
+        "days": 1,
+        "deliverable": "tests/bid"
+      }
+    ],
+    "risks": [
+      "投标字段缺失",
+      "预算口径漂移"
+    ],
+    "test_plan": [
+      "权重之和必须为 1",
+      "超预算投标必须废标"
+    ],
+    "invariants": [
+      "INV-001",
+      "INV-002"
+    ]
+  },
+  "submitted_at": "2026-11-12T00:00:00.000Z"
+}

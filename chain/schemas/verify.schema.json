@@ -1,0 +1,201 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://trading-site.invalid/chain/schemas/verify.schema.json",
+  "title": "reports/{task}/attempt-{nn}/verify.json",
+  "description": "验收凭据。本地与 CI 使用同一入口产出；只有 status=passed 且 ci_run_id 非空才可进入合并门禁。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "task_id",
+    "attempt_id",
+    "base_commit",
+    "commit",
+    "diff_hash",
+    "status",
+    "stages",
+    "integrity",
+    "environment",
+    "created_at"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "task_id": { "type": "string", "pattern": "^T-[0-9]{3}$" },
+    "attempt_id": { "type": "string", "pattern": "^T-[0-9]{3}-A[0-9]{2}$" },
+    "base_commit": { "$ref": "#/$defs/gitSha" },
+    "commit": { "$ref": "#/$defs/gitSha" },
+    "diff_hash": { "$ref": "#/$defs/sha256" },
+    "status": { "type": "string", "enum": ["passed", "failed", "error"] },
+    "failure_class": { "$ref": "#/$defs/failureClassOrNull" },
+    "failed_tests": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1, "maxLength": 200 },
+      "uniqueItems": true
+    },
+    "required_tests": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/requiredTest" }
+    },
+    "invariants": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/invariantResult" }
+    },
+    "stages": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/stage" }
+    },
+    "integrity": { "$ref": "#/$defs/integrity" },
+    "environment": { "$ref": "#/$defs/environment" },
+    "duration_ms": { "type": "integer", "minimum": 0 },
+    "created_at": { "$ref": "#/$defs/timestamp" }
+  },
+  "$defs": {
+    "timestamp": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}Z$"
+    },
+    "sha256": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "gitSha": { "type": "string", "pattern": "^[0-9a-f]{7,40}$" },
+    "repoPathOrNull": {
+      "anyOf": [
+        { "type": "string", "minLength": 1, "pattern": "^(?!/)(?!.*\\\\).+$" },
+        { "type": "null" }
+      ]
+    },
+    "failureClass": {
+      "type": "string",
+      "enum": [
+        "INFRA_NETWORK",
+        "INFRA_DISK",
+        "ENV_MISMATCH",
+        "COMPILE_ERROR",
+        "TYPE_ERROR",
+        "LINT_ERROR",
+        "TEST_ASSERT",
+        "TEST_FLAKE",
+        "INVARIANT_FAIL",
+        "I18N_PARITY",
+        "BUILD_ERROR",
+        "SCOPE_VIOLATION",
+        "PROTECTED_PATH",
+        "TEST_TAMPERING",
+        "SECURITY",
+        "MODEL_OUTPUT_INVALID",
+        "MODEL_API_ERROR",
+        "REVIEW_BLOCK",
+        "NO_PROGRESS",
+        "BUDGET_EXCEEDED"
+      ]
+    },
+    "failureClassOrNull": {
+      "anyOf": [{ "$ref": "#/$defs/failureClass" }, { "type": "null" }]
+    },
+    "requiredTest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "file", "status"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "file": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?!/)(?!.*\\\\).+$"
+        },
+        "must_be_new_or_modified": { "type": "boolean" },
+        "present_in_diff": { "type": "boolean" },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "passed", "failed", "missing"]
+        }
+      }
+    },
+    "invariantResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "status"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^INV-[0-9]{3}$" },
+        "status": {
+          "type": "string",
+          "enum": ["covered", "uncovered", "failed"]
+        },
+        "test_ids": {
+          "type": "array",
+          "items": { "type": "string", "maxLength": 200 },
+          "uniqueItems": true
+        }
+      }
+    },
+    "stage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "status", "duration_ms"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "enum": [
+            "schema",
+            "scope",
+            "test_integrity",
+            "typecheck",
+            "lint",
+            "unit",
+            "invariant",
+            "i18n_parity",
+            "build",
+            "security"
+          ]
+        },
+        "status": {
+          "type": "string",
+          "enum": ["skipped", "passed", "failed", "error"]
+        },
+        "exit_code": { "type": ["integer", "null"] },
+        "duration_ms": { "type": "integer", "minimum": 0 },
+        "failure_class": { "$ref": "#/$defs/failureClassOrNull" },
+        "log": { "$ref": "#/$defs/repoPathOrNull" },
+        "junit": { "$ref": "#/$defs/repoPathOrNull" }
+      }
+    },
+    "integrity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "test_files_deleted",
+        "skip_markers_added",
+        "assertions_before",
+        "assertions_after",
+        "verify_script_hash_match",
+        "untracked_included"
+      ],
+      "properties": {
+        "test_files_deleted": { "type": "integer", "minimum": 0 },
+        "skip_markers_added": { "type": "integer", "minimum": 0 },
+        "assertions_before": { "type": "integer", "minimum": 0 },
+        "assertions_after": { "type": "integer", "minimum": 0 },
+        "verify_script_hash_match": { "type": "boolean" },
+        "untracked_included": { "type": "boolean" },
+        "protected_paths_touched": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1, "maxLength": 300 },
+          "uniqueItems": true
+        }
+      }
+    },
+    "environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["os", "node", "pnpm", "local"],
+      "properties": {
+        "os": { "type": "string", "minLength": 1, "maxLength": 40 },
+        "node": { "type": "string", "pattern": "^22\\.[0-9]+\\.[0-9]+$" },
+        "pnpm": { "type": "string", "minLength": 1, "maxLength": 20 },
+        "local": { "type": "boolean" },
+        "runner": { "type": ["string", "null"], "maxLength": 80 },
+        "ci_run_id": { "type": ["string", "null"], "maxLength": 64 },
+        "workflow_sha": { "$ref": "#/$defs/repoPathOrNull" }
+      }
+    }
+  }
+}
+

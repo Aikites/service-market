@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://trading-site.invalid/chain/schemas/rca.schema.json",
+  "title": "reports/{task}/attempt-{nn}/rca.json",
+  "description": "DeepSeek 根因分析。全链路同源，因此以强制复现命令 + 证据路径 + 人工确认替代异源评审。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "rca_id",
+    "task_id",
+    "attempt_id",
+    "base_commit",
+    "commit",
+    "diff_hash",
+    "failure_class",
+    "root_cause",
+    "evidence",
+    "reproduction",
+    "minimal_fix",
+    "confidence",
+    "model",
+    "created_at"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "rca_id": { "type": "string", "minLength": 8, "maxLength": 120 },
+    "task_id": { "type": "string", "pattern": "^T-[0-9]{3}$" },
+    "attempt_id": { "type": "string", "pattern": "^T-[0-9]{3}-A[0-9]{2}$" },
+    "base_commit": { "type": "string", "pattern": "^[0-9a-f]{7,40}$" },
+    "commit": { "type": "string", "pattern": "^[0-9a-f]{7,40}$" },
+    "diff_hash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "failure_class": {
+      "type": "string",
+      "enum": [
+        "INFRA_NETWORK",
+        "INFRA_DISK",
+        "ENV_MISMATCH",
+        "COMPILE_ERROR",
+        "TYPE_ERROR",
+        "LINT_ERROR",
+        "TEST_ASSERT",
+        "TEST_FLAKE",
+        "INVARIANT_FAIL",
+        "I18N_PARITY",
+        "BUILD_ERROR",
+        "SCOPE_VIOLATION",
+        "PROTECTED_PATH",
+        "TEST_TAMPERING",
+        "SECURITY",
+        "MODEL_OUTPUT_INVALID",
+        "MODEL_API_ERROR",
+        "REVIEW_BLOCK",
+        "NO_PROGRESS",
+        "BUDGET_EXCEEDED"
+      ]
+    },
+    "root_cause": { "type": "string", "minLength": 1, "maxLength": 2000 },
+    "evidence": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1, "maxLength": 300 },
+      "uniqueItems": true
+    },
+    "reproduction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["command", "pre_fix_exit_code", "post_fix_exit_code"],
+      "properties": {
+        "command": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 300,
+          "pattern": "^(pnpm (test|verify|run [a-z:]+)|node [^ ]+\\.m?js|npx vitest run)( .*)?$",
+          "description": "只允许本地测试/构建命令；禁止 curl、git push、publish 等副作用命令。"
+        },
+        "pre_fix_exit_code": { "type": "integer" },
+        "pre_fix_confirmed_at": {
+          "type": ["string", "null"],
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}Z$"
+        },
+        "post_fix_exit_code": { "type": ["integer", "null"] }
+      }
+    },
+    "minimal_fix": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^(?!/)(?!.*\\\\).+$"
+      },
+      "uniqueItems": true
+    },
+    "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+    "model": { "$ref": "#/$defs/modelRef" },
+    "created_at": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}Z$"
+    }
+  },
+  "$defs": {
+    "modelRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider", "model", "prompt_hash"],
+      "properties": {
+        "provider": { "type": "string", "enum": ["deepseek"] },
+        "model": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "model_version": { "type": ["string", "null"], "maxLength": 40 },
+        "prompt_hash": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        }
+      }
+    }
+  }
+}
+

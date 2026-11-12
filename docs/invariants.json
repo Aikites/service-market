@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "updated_at": "2026-11-12T00:00:00.000Z",
+  "updated_by": "human",
+  "notes": [
+    "本文件是 docs/invariants.md 的机器可读版本；verify 阶段唯一读取源，与 md 冲突时以本文件为准。",
+    "check.kind 由 scripts/verify.mjs 实现；新增 kind 必须同改脚本并补 --self-test，否则 verify 报 unsupported_check 并不放行。",
+    "rule 是人类可读公式，check 是执行口径；二者不一致视为配置错误（invalid_config），而不是放宽口径。",
+    "严重级别：severity=fail 违规即非 0 退出（CI 拦截）；severity=warn 只告警，--strict 时升级为失败。",
+    "所有金额单位 CNY，比较统一保留六位小数（policy.budget.decimals=6），禁止浮点相等判断。"
+  ],
+  "invariants": [
+    {
+      "id": "INV-001",
+      "title": "单任务预算上限",
+      "desc": "单任务预算上限不能超过 policy.json 里的 per_task 额度",
+      "rule": "task.budget.max_cost_cny <= policy.budget.task.max_cost_cny；且 中标报价 <= min(task.budget.max_cost_cny, policy.budget.task.max_cost_cny)；且 任何报价 > 上限的投标必须已被评审判废（否则为评审漏判）",
+      "assumption": "bids/ 是投标池，可能含被 G1~G8 判废的报价；『报价超限』本身不是违规（不发生花费），『超限却未被判废』才是。",
+      "check": {
+        "kind": "per_task_budget",
+        "bid_field": "quote_cny",
+        "policy_path": "budget.task.max_cost_cny",
+        "task_path": "budget.max_cost_cny",
+        "severity": "fail"
+      },
+      "enforced_by": ["scripts/review-bids.mjs:G3", "scripts/verify.mjs:invariant"],
+      "on_violation": "failed"
+    },
+    {
+      "id": "INV-002",
+      "title": "单日预算上限",
+      "desc": "单日全部任务合计花费不能超过 policy.json daily_limit",
+      "rule": "state.global.budget.daily_spent_cny + Σ(当日中标报价) <= policy.budget.daily.max_cost_cny",
+      "assumption": "只计实际花费（已花 + 中标价）。全体投标报价之和是『敞口』而非花费，超限仅告警（exposure_warn）；若确要按报价合计卡，把 check.amount_from 改成 all_quotes。",
+      "check": {
+        "kind": "daily_budget",
+        "amount_from": "winner",
+        "policy_path": "budget.daily.max_cost_cny",
+        "state_path": "global.budget.daily_spent_cny",
+        "report": "reports/{task_id}/bid-result.json",
+        "exposure_warn": true,
+        "severity": "fail"
+      },
+      "enforced_by": ["scripts/review-bids.mjs:G4", "scripts/verify.mjs:invariant"],
+      "on_violation": "failed"
+    },
+    {
+      "id": "INV-003",
+      "title": "评分区间",
+      "desc": "评审打分必须是 0~1 区间浮点数，不能出现负数或大于1的值",
+      "rule": "∀s ∈ report.ranking[*].{scores.price,scores.delivery,scores.quality,total} : 0 <= s <= 1",
+      "check": {
+        "kind": "score_range",
+        "report": "reports/{task_id}/bid-result.json",
+        "score_paths": [
+          "ranking[].scores.price",
+          "ranking[].scores.delivery",
+          "ranking[].scores.quality",
+          "ranking[].total"
+        ],
+        "min": 0,
+        "max": 1,
+        "severity": "fail"
+      },
+      "enforced_by": ["scripts/review-bids.mjs:scoreBids", "scripts/verify.mjs:invariant"],
+      "on_violation": "failed"
+    }
+  ]
+}
+

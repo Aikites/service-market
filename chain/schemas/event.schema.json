@@ -1,0 +1,116 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://trading-site.invalid/chain/schemas/event.schema.json",
+  "title": "chain/events.jsonl 单行事件",
+  "description": "只追加事实源。seq 单调递增，prev_hash 链式绑定，可选 HMAC 签名。每行一个 JSON，禁止美化与重写。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "seq",
+    "event_id",
+    "ts",
+    "type",
+    "actor",
+    "payload",
+    "prev_hash",
+    "hash"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "seq": { "type": "integer", "minimum": 1 },
+    "event_id": {
+      "type": "string",
+      "pattern": "^evt-[0-9A-HJKMNP-TV-Z]{26}$",
+      "description": "evt- 前缀 + 26 位 Crockford Base32 ULID。"
+    },
+    "ts": { "$ref": "#/$defs/timestamp" },
+    "task_id": { "$ref": "#/$defs/taskIdOrNull" },
+    "attempt_id": { "$ref": "#/$defs/attemptIdOrNull" },
+    "run_id": {
+      "type": ["string", "null"],
+      "maxLength": 120,
+      "description": "关联 chain/runs.jsonl 的成本记录。"
+    },
+    "type": { "$ref": "#/$defs/eventType" },
+    "actor": {
+      "type": "string",
+      "pattern": "^(loop|human|ci):[A-Za-z0-9._-]{1,64}(:[0-9]{1,10})?$"
+    },
+    "payload": { "type": "object" },
+    "reason": { "type": ["string", "null"], "maxLength": 500 },
+    "prev_hash": { "$ref": "#/$defs/sha256OrNull" },
+    "hash": { "$ref": "#/$defs/sha256" },
+    "signature": {
+      "anyOf": [
+        { "type": "string", "pattern": "^hmac-sha256:[0-9a-f]{64}$" },
+        { "type": "null" }
+      ]
+    }
+  },
+  "$defs": {
+    "timestamp": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}Z$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "sha256OrNull": {
+      "anyOf": [{ "$ref": "#/$defs/sha256" }, { "type": "null" }]
+    },
+    "taskIdOrNull": {
+      "anyOf": [
+        { "type": "string", "pattern": "^T-[0-9]{3}$" },
+        { "type": "null" }
+      ]
+    },
+    "attemptIdOrNull": {
+      "anyOf": [
+        { "type": "string", "pattern": "^T-[0-9]{3}-A[0-9]{2}$" },
+        { "type": "null" }
+      ]
+    },
+    "eventType": {
+      "type": "string",
+      "enum": [
+        "task.selected",
+        "task.confirmed",
+        "task.rejected",
+        "attempt.created",
+        "attempt.abandoned",
+        "lock.acquired",
+        "lock.released",
+        "lock.broken",
+        "builder.started",
+        "builder.finished",
+        "builder.timeout",
+        "i18n.started",
+        "i18n.finished",
+        "verify.started",
+        "verify.finished",
+        "rca.started",
+        "rca.finished",
+        "fix.started",
+        "fix.finished",
+        "review.started",
+        "review.finished",
+        "approval.granted",
+        "approval.invalidated",
+        "retry.scheduled",
+        "no_progress.detected",
+        "budget.warning",
+        "budget.exceeded",
+        "cost.reconcile_mismatch",
+        "merge.gate_checked",
+        "merge.done",
+        "state.written",
+        "state.reconciled",
+        "state.corrupt",
+        "error"
+      ]
+    }
+  }
+}
+

@@ -1,0 +1,22 @@
+#!/bin/sh
+# .githooks/pre-push —— 推送前跑完整 8 阶段完整性测试，不过就不许推
+#
+# 与 CI 使用同一个入口（scope/test_integrity.mjs），保证「本地绿 == CI 绿」。
+# 需要临时绕过：SKIP_FACTORY_HOOKS=1 git push
+set -e
+
+if [ "${SKIP_FACTORY_HOOKS:-0}" = "1" ]; then
+  echo "[pre-push] SKIP_FACTORY_HOOKS=1，跳过完整性测试（本次推送未经质检）"
+  exit 0
+fi
+
+if ! command -v node >/dev/null 2>&1; then
+  echo "[pre-push] 找不到 node，无法跑完整性测试；请安装 Node 22+ 后再推送" >&2
+  exit 1
+fi
+
+# Git for Windows 下控制台默认 GBK，Node 输出 UTF-8 会显示成乱码；切代码页不影响校验结果
+if command -v chcp.com >/dev/null 2>&1; then chcp.com 65001 >/dev/null 2>&1 || true; fi
+
+node scope/test_integrity.mjs
+

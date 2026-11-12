@@ -1,0 +1,48 @@
+{
+  "bid_id": "BID-BETA-01",
+  "agent_id": "agent-beta",
+  "provider": "deepseek",
+  "model": "deepseek-reasoner",
+  "quote_cny": 9,
+  "delivery_days": 4,
+  "estimate": {
+    "input_tokens": 80000,
+    "output_tokens": 15000,
+    "cache_hit_ratio": 0.2
+  },
+  "touched_paths": [
+    "index.html",
+    "src/**"
+  ],
+  "plan": {
+    "milestones": [
+      {
+        "name": "全量实现",
+        "days": 3,
+        "deliverable": "src/bid + index.html"
+      },
+      {
+        "name": "自测",
+        "days": 1,
+        "deliverable": "tests/bid"
+      },
+      {
+        "name": "交付",
+        "days": 0,
+        "deliverable": "docs/bid-hall.md"
+      }
+    ],
+    "risks": [
+      "排期过紧",
+      "无缓冲"
+    ],
+    "test_plan": [
+      "覆盖评分",
+      "覆盖闸门"
+    ],
+    "invariants": [
+      "INV-001"
+    ]
+  },
+  "submitted_at": "2026-11-12T00:00:00.000Z"
+}

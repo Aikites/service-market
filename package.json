@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json.schemastore.org/package.json",
+  "name": "trading-site",
+  "version": "0.1.0",
+  "private": true,
+  "description": "交易站点 + AI 竞标工厂流水线：任务卡即标书，工位串行执行，模型之间不直接对话",
+  "license": "UNLICENSED",
+  "type": "module",
+  "main": "server.js",
+  "engines": {
+    "node": ">=22.0.0 <25.0.0",
+    "pnpm": ">=9.0.0 <11.0.0"
+  },
+  "packageManager": "pnpm@9.15.0",
+  "scripts": {
+    "start": "node server.js",
+    "verify": "node scripts/verify.mjs",
+    "verify:fast": "node scripts/verify.mjs --stages schema",
+    "verify:ci": "node scripts/verify.mjs --ci",
+    "verify:schema": "node scripts/verify.mjs --stages schema",
+    "verify:json": "node scripts/verify.mjs --check-json",
+    "verify:negative": "node scripts/verify.mjs --negative-test",
+    "verify:regression": "node scripts/verify.mjs --regression",
+    "test:integrity": "node scope/test_integrity.mjs",
+    "test:integrity:json": "node scope/test_integrity.mjs --json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "chain": "node chain/loop.mjs",
+    "chain:plan": "node chain/run.mjs plan",
+    "chain:build": "node chain/run.mjs build",
+    "chain:i18n": "node chain/run.mjs i18n",
+    "chain:review": "node chain/run.mjs review",
+    "chain:state": "node chain/run.mjs state",
+    "chain:approve": "node chain/run.mjs approve",
+    "chain:reject": "node chain/run.mjs reject",
+    "chain:resume": "node chain/run.mjs resume",
+    "chain:cost": "node chain/run.mjs cost",
+    "hooks:install": "git config core.hooksPath .githooks",
+    "hooks:remove": "git config --unset core.hooksPath"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/node": "^22.9.0",
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1",
+    "eslint": "^9.14.0",
+    "prettier": "^3.3.3",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.4"
+  }
+}
+

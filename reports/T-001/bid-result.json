@@ -1,0 +1,158 @@
+{
+  "schema_version": 1,
+  "kind": "bid-review",
+  "self_test": false,
+  "task_id": "T-001",
+  "task_status": "draft",
+  "generated_at": "2026-11-12T15:43:19.098Z",
+  "bidding_hash": "sha256:51a048a54c8d11979f9405502f74abde1e6a1d13fd42ad20c77b2c7e226ae073",
+  "sources": {
+    "policy": "chain/policy.json",
+    "pricing": "chain/pricing.json",
+    "pricing_version": "2026-11-cny-01",
+    "pricing_verified": false,
+    "bid_dir": "bids/T-001"
+  },
+  "limits": {
+    "task_max_cny": 8,
+    "policy_task_max_cny": 8,
+    "daily_max_cny": 8,
+    "daily_spent_cny": 0,
+    "daily_remaining_cny": 8,
+    "budget_source": "empty_state",
+    "single_call_max_cny": 2,
+    "max_delivery_days": 14,
+    "provider": "deepseek",
+    "weights": {
+      "price": 0.45,
+      "delivery": 0.25,
+      "quality": 0.3
+    }
+  },
+  "counts": {
+    "bids": 3,
+    "qualified": 2,
+    "disqualified": 1,
+    "unparsable": 0,
+    "min_bids": 2
+  },
+  "insufficient_bids": false,
+  "disqualified": [
+    {
+      "bid_id": "BID-BETA-01",
+      "agent_id": "agent-beta",
+      "quote_cny": 9,
+      "fails": [
+        {
+          "gate": "G3",
+          "reason": "报价 ¥9.00 超过单任务上限 ¥8.00"
+        },
+        {
+          "gate": "G4",
+          "reason": "报价 ¥9.00 超过当日剩余 ¥8.00（上限 ¥8.00，已花 ¥0.00）"
+        }
+      ]
+    }
+  ],
+  "ranking": [
+    {
+      "rank": 1,
+      "bid_id": "BID-GAMMA-01",
+      "agent_id": "agent-gamma",
+      "provider": "deepseek",
+      "model": "deepseek-chat",
+      "quote_cny": 4,
+      "est_cost_cny": 0.207,
+      "delivery_days": 12,
+      "scores": {
+        "price": 1,
+        "delivery": 0,
+        "quality": 0.4
+      },
+      "total": 0.57,
+      "quality_detail": [
+        {
+          "item": "milestones_at_least",
+          "ok": false,
+          "note": "2/3"
+        },
+        {
+          "item": "risks_at_least",
+          "ok": false,
+          "note": "1/2"
+        },
+        {
+          "item": "test_plan_at_least",
+          "ok": false,
+          "note": "1/2"
+        },
+        {
+          "item": "milestones_cover_all_touched",
+          "ok": true,
+          "note": "ok"
+        },
+        {
+          "item": "invariants_subset_of_task",
+          "ok": true,
+          "note": "ok"
+        }
+      ]
+    },
+    {
+      "rank": 2,
+      "bid_id": "BID-ALPHA-01",
+      "agent_id": "agent-alpha",
+      "provider": "deepseek",
+      "model": "deepseek-chat",
+      "quote_cny": 6.2,
+      "est_cost_cny": 0.2995,
+      "delivery_days": 5,
+      "scores": {
+        "price": 0,
+        "delivery": 1,
+        "quality": 1
+      },
+      "total": 0.55,
+      "quality_detail": [
+        {
+          "item": "milestones_at_least",
+          "ok": true,
+          "note": "3/3"
+        },
+        {
+          "item": "risks_at_least",
+          "ok": true,
+          "note": "2/2"
+        },
+        {
+          "item": "test_plan_at_least",
+          "ok": true,
+          "note": "2/2"
+        },
+        {
+          "item": "milestones_cover_all_touched",
+          "ok": true,
+          "note": "ok"
+        },
+        {
+          "item": "invariants_subset_of_task",
+          "ok": true,
+          "note": "ok"
+        }
+      ]
+    }
+  ],
+  "winner": {
+    "bid_id": "BID-GAMMA-01",
+    "agent_id": "agent-gamma",
+    "quote_cny": 4,
+    "delivery_days": 12,
+    "total": 0.57,
+    "reason": "总分 0.57 排名第 1（价格权重 0.45 / 周期 0.25 / 方案 0.3）"
+  },
+  "notes": [
+    "chain/state.json 为空（快照尚未写入），当日已花费按 0 计，需人工确认",
+    "价格表 2026-11-cny-01 未核对（verified=false），仅供估算",
+    "本结果由确定性脚本产出，未调用任何大模型"
+  ]
+}

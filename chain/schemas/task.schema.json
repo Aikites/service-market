@@ -1,0 +1,144 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://trading-site.invalid/chain/schemas/task.schema.json",
+  "title": "tasks/T-00x.md front-matter",
+  "description": "标书。人确认后 task_sha256 生效，任何改动都使确认失效。正文 Markdown 不入本 schema。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "task_id",
+    "title",
+    "status",
+    "created_at",
+    "created_by",
+    "objective",
+    "allowed_paths",
+    "required_tests",
+    "invariants",
+    "acceptance",
+    "budget",
+    "human_approval"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "task_id": { "type": "string", "pattern": "^T-[0-9]{3}$" },
+    "title": { "type": "string", "minLength": 1, "maxLength": 120 },
+    "status": {
+      "type": "string",
+      "enum": ["draft", "confirmed", "in_progress", "done", "rejected"]
+    },
+    "created_at": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}Z$"
+    },
+    "created_by": { "type": "string", "enum": ["planner", "human"] },
+    "depends_on": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^T-[0-9]{3}$" },
+      "uniqueItems": true
+    },
+    "objective": { "type": "string", "minLength": 1, "maxLength": 2000 },
+    "in_scope": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1, "maxLength": 300 }
+    },
+    "out_of_scope": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1, "maxLength": 300 },
+      "description": "前置禁止项：写进 Builder prompt 的开头。"
+    },
+    "allowed_paths": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1, "maxLength": 300 }
+    },
+    "forbidden_paths": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1, "maxLength": 300 }
+    },
+    "allowed_test_paths": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1, "maxLength": 300 },
+      "description": "只允许新增/修改，不允许删除或加 skip。"
+    },
+    "required_tests": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "file", "must_be_new_or_modified"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1, "maxLength": 200 },
+          "file": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^(?!/)(?!.*\\\\).+$"
+          },
+          "must_be_new_or_modified": { "type": "boolean" }
+        }
+      }
+    },
+    "invariants": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^INV-[0-9]{3}$" },
+      "uniqueItems": true
+    },
+    "acceptance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["commands", "definition_of_done"],
+      "properties": {
+        "commands": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1, "maxLength": 300 }
+        },
+        "definition_of_done": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1, "maxLength": 300 }
+        },
+        "must_not": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1, "maxLength": 300 }
+        }
+      }
+    },
+    "budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["max_cost_cny"],
+      "properties": {
+        "max_cost_cny": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 8,
+          "description": "不得超过已确认单任务上限 8 元。"
+        },
+        "max_model_calls": { "type": "integer", "minimum": 1, "maximum": 50 },
+        "max_input_tokens": { "type": "integer", "minimum": 1000 },
+        "max_output_tokens": { "type": "integer", "minimum": 1000 }
+      }
+    },
+    "human_approval": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["required"],
+      "properties": {
+        "required": { "const": true },
+        "approved_by": { "type": ["string", "null"], "maxLength": 80 },
+        "approved_at": {
+          "type": ["string", "null"],
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{3}Z$"
+        },
+        "task_sha256": {
+          "type": ["string", "null"],
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        }
+      }
+    },
+    "notes": { "type": ["string", "null"], "maxLength": 2000 }
+  }
+}
+

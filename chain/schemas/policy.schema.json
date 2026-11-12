@@ -1,0 +1,607 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://trading-site.invalid/chain/schemas/policy.schema.json",
+  "title": "chain/policy.json",
+  "description": "竞标工厂策略。受保护文件：任何改动都视为闸门变更，需人工审批。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "project",
+    "factory",
+    "models",
+    "budget",
+    "retry",
+    "timeouts",
+    "protected_paths",
+    "protected_paths_policy",
+    "scope",
+    "acceptance",
+    "git",
+    "i18n",
+    "observability",
+    "exit_codes"
+  ],
+  "properties": {
+    "$schema": { "type": "string", "minLength": 1 },
+    "schema_version": { "const": 1 },
+    "project": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "mode",
+        "timezone",
+        "default_branch",
+        "task_branch_prefix",
+        "worktree_dir"
+      ],
+      "properties": {
+        "name": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "mode": { "const": "bid_factory" },
+        "timezone": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "default_branch": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "task_branch_prefix": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40
+        },
+        "worktree_dir": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120,
+          "pattern": "^(?!/)(?!.*\\\\).+$"
+        }
+      }
+    },
+    "factory": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["execution", "contracts", "handoff", "workstations"],
+      "properties": {
+        "execution": { "const": "serial" },
+        "description": { "type": "string", "maxLength": 1000 },
+        "contracts": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "tasks_dir",
+            "task_schema",
+            "invariants_file",
+            "invariants_doc",
+            "state_schema",
+            "event_schema"
+          ],
+          "properties": {
+            "tasks_dir": { "type": "string", "minLength": 1, "maxLength": 120 },
+            "task_schema": { "type": "string", "minLength": 1, "maxLength": 200 },
+            "invariants_file": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "invariants_doc": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "state_schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "event_schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          }
+        },
+        "handoff": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "state_file",
+            "events_file",
+            "reports_dir",
+            "attempt_dir_pattern"
+          ],
+          "properties": {
+            "state_file": { "type": "string", "minLength": 1, "maxLength": 200 },
+            "events_file": { "type": "string", "minLength": 1, "maxLength": 200 },
+            "reports_dir": { "type": "string", "minLength": 1, "maxLength": 120 },
+            "attempt_dir_pattern": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          }
+        },
+        "workstations": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/workstation" }
+        }
+      }
+    },
+  "models": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "router_locked",
+      "require_single_provider",
+      "provider",
+      "routes",
+      "rca",
+      "review"
+    ],
+    "properties": {
+      "router_locked": { "type": "boolean" },
+      "require_single_provider": { "type": "boolean" },
+      "provider": { "type": "string", "enum": ["deepseek"] },
+      "routes": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["plan", "build", "i18n", "rca", "review"],
+        "properties": {
+          "plan": { "$ref": "#/$defs/route" },
+          "build": { "$ref": "#/$defs/route" },
+          "i18n": { "$ref": "#/$defs/route" },
+          "rca": { "$ref": "#/$defs/route" },
+          "review": { "$ref": "#/$defs/route" }
+        }
+      },
+      "rca": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "require_reproduction",
+          "require_evidence",
+          "reproduction_must_fail_on_base",
+          "min_confidence",
+          "provider_must_differ_from_builder"
+        ],
+        "properties": {
+          "require_reproduction": { "const": true },
+          "require_evidence": { "const": true },
+          "reproduction_must_fail_on_base": { "type": "boolean" },
+          "min_confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+          "provider_must_differ_from_builder": { "type": "boolean" },
+          "compensation": { "type": "string", "maxLength": 1000 }
+        }
+      },
+      "review": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "output_format",
+          "bind_to",
+          "forbid_truncated_approval",
+          "min_confidence"
+        ],
+        "properties": {
+          "output_format": { "const": "json_schema" },
+          "bind_to": { "type": "string", "enum": ["diff_hash", "commit"] },
+          "forbid_truncated_approval": { "const": true },
+          "min_confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+        }
+      }
+    }
+  },
+  "budget": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "currency",
+      "decimals",
+      "task",
+      "daily",
+      "phase_share",
+      "circuit_breaker"
+    ],
+    "properties": {
+      "currency": { "const": "CNY" },
+      "decimals": { "type": "integer", "minimum": 0, "maximum": 8 },
+      "task": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "max_cost_cny",
+          "max_model_calls",
+          "max_input_tokens",
+          "max_output_tokens"
+        ],
+        "properties": {
+          "max_cost_cny": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "maximum": 8
+          },
+          "max_model_calls": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50
+          },
+          "max_input_tokens": { "type": "integer", "minimum": 1000 },
+          "max_output_tokens": { "type": "integer", "minimum": 1000 }
+        }
+      },
+      "daily": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["max_cost_cny", "reset_at", "timezone"],
+        "properties": {
+          "max_cost_cny": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "maximum": 8
+          },
+          "reset_at": {
+            "type": "string",
+            "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+          },
+          "timezone": { "type": "string", "minLength": 1, "maxLength": 64 }
+        }
+      },
+      "phase_share": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["plan", "build", "i18n", "rca", "review"],
+        "properties": {
+          "plan": { "type": "number", "minimum": 0, "maximum": 1 },
+          "build": { "type": "number", "minimum": 0, "maximum": 1 },
+          "i18n": { "type": "number", "minimum": 0, "maximum": 1 },
+          "rca": { "type": "number", "minimum": 0, "maximum": 1 },
+          "review": { "type": "number", "minimum": 0, "maximum": 1 }
+        }
+      },
+      "circuit_breaker": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "single_call_max_cny",
+          "calls_per_minute_max",
+          "refuse_when_over_budget"
+        ],
+        "properties": {
+          "single_call_max_cny": { "$ref": "#/$defs/moneyCny" },
+          "calls_per_minute_max": { "type": "integer", "minimum": 1 },
+          "refuse_when_over_budget": { "const": true },
+          "estimate_before_call": { "type": "boolean" },
+          "stop_on_repeated_failure": { "type": "integer", "minimum": 1 }
+        }
+      }
+    }
+  },
+  "retry": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "max_attempts_per_task",
+      "max_builder_rounds",
+      "max_review_rounds",
+      "max_infra_retries_per_step",
+      "no_progress_streak_limit",
+      "diff_similarity_threshold",
+      "reset_to_base_each_attempt",
+      "rerun_full_verify_after_fix"
+    ],
+    "properties": {
+      "max_attempts_per_task": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 2,
+        "description": "已确认值 2，2 为硬上限。"
+      },
+      "max_builder_rounds": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 2,
+        "description": "已确认值 2，2 为硬上限。"
+      },
+      "max_review_rounds": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 1,
+        "description": "已确认值 1，1 为硬上限。"
+      },
+      "max_infra_retries_per_step": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 2
+      },
+      "no_progress_streak_limit": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 2
+      },
+      "diff_similarity_threshold": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 1
+      },
+      "reset_to_base_each_attempt": { "const": true },
+      "rerun_full_verify_after_fix": { "const": true }
+    }
+  },
+  "timeouts": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["step_s", "model_call_s", "heartbeat_s", "lock_ttl_s"],
+    "properties": {
+      "step_s": {
+        "type": "number",
+        "exclusiveMinimum": 0,
+        "maximum": 120,
+        "description": "已确认单步 120s，120 为硬上限。"
+      },
+      "model_call_s": {
+        "type": "number",
+        "exclusiveMinimum": 0,
+        "maximum": 120
+      },
+      "heartbeat_s": { "type": "number", "exclusiveMinimum": 0, "maximum": 60 },
+      "lock_ttl_s": { "type": "number", "exclusiveMinimum": 0, "maximum": 300 }
+    }
+  },
+  "protected_paths": {
+    "type": "array",
+    "minItems": 1,
+    "items": { "$ref": "#/$defs/glob" },
+    "description": "触碰即停转人工；清单只增不减。"
+  },
+  "protected_paths_policy": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "on_touch",
+      "allow_delete_tests",
+      "allow_skip_markers",
+      "allow_verify_script_change",
+      "require_codeowners",
+      "fail_closed"
+    ],
+    "properties": {
+      "on_touch": { "const": "block_and_require_human" },
+      "allow_delete_tests": { "const": false },
+      "allow_skip_markers": { "const": false },
+      "allow_verify_script_change": { "const": false },
+      "require_codeowners": { "type": "boolean" },
+      "fail_closed": { "const": true }
+    }
+  },
+  "scope": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "enforce_allowed_paths",
+      "use_untracked_files",
+      "always_forbidden_paths"
+    ],
+    "properties": {
+      "enforce_allowed_paths": { "type": "boolean" },
+      "use_untracked_files": { "type": "boolean" },
+      "ignore_whitespace_only_diff": { "type": "boolean" },
+      "always_forbidden_paths": {
+        "type": "array",
+        "items": { "$ref": "#/$defs/glob" }
+      }
+    }
+  },
+  "acceptance": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "verify_entry",
+      "verify_package_script",
+      "stages",
+      "local_gate",
+      "remote_gate",
+      "require_ci_run_id_for_merge",
+      "require_local_green_before_ci",
+      "require_invariant_tests",
+      "block_on_truncated_review",
+      "local_result_is_not_merge_authority"
+    ],
+    "properties": {
+      "verify_entry": { "const": "node scripts/verify.mjs" },
+      "verify_package_script": { "const": "pnpm verify" },
+      "stages": {
+        "type": "array",
+        "minItems": 1,
+        "items": { "$ref": "#/$defs/stageName" },
+        "uniqueItems": true
+      },
+      "local_gate": { "const": "git-hook" },
+      "remote_gate": { "const": "github-actions" },
+      "require_ci_run_id_for_merge": { "const": true },
+      "require_local_green_before_ci": { "type": "boolean" },
+      "require_invariant_tests": { "type": "boolean" },
+      "block_on_truncated_review": { "const": true },
+      "local_result_is_not_merge_authority": { "const": true }
+    }
+  },
+  "git": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "use_worktrees",
+      "push_strategy",
+      "require_clean_worktree",
+      "commit_trailer_key",
+      "protected_branches"
+    ],
+    "properties": {
+      "use_worktrees": { "type": "boolean" },
+      "push_strategy": { "const": "pr_only" },
+      "require_clean_worktree": { "type": "boolean" },
+      "commit_trailer_key": { "type": "string", "minLength": 1, "maxLength": 40 },
+      "protected_branches": {
+        "type": "array",
+        "items": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "uniqueItems": true
+      }
+    }
+  },
+  "i18n": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "enabled",
+      "trigger_file",
+      "locale_dir",
+      "source_locale",
+      "allow_paths",
+      "incremental",
+      "state_file",
+      "require_key_parity"
+    ],
+    "properties": {
+      "enabled": { "type": "boolean" },
+      "trigger_file": { "type": "string", "minLength": 1, "maxLength": 200 },
+      "locale_dir": { "type": "string", "minLength": 1, "maxLength": 120 },
+      "source_locale": { "type": "string", "minLength": 2, "maxLength": 20 },
+      "allow_paths": {
+        "type": "array",
+        "minItems": 1,
+        "items": { "$ref": "#/$defs/glob" }
+      },
+      "incremental": { "type": "boolean" },
+      "state_file": { "type": "string", "minLength": 1, "maxLength": 200 },
+      "require_key_parity": { "const": true }
+    }
+  },
+  "observability": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "runs_file",
+      "pricing_file",
+      "costs_dir",
+      "rotate_monthly",
+      "redaction_version",
+      "record_usage_source",
+      "reconcile_tolerance"
+    ],
+    "properties": {
+      "runs_file": { "type": "string", "minLength": 1, "maxLength": 200 },
+      "pricing_file": { "type": "string", "minLength": 1, "maxLength": 200 },
+      "costs_dir": { "type": "string", "minLength": 1, "maxLength": 120 },
+      "rotate_monthly": { "type": "boolean" },
+      "redaction_version": { "type": "string", "minLength": 1, "maxLength": 16 },
+      "record_usage_source": { "const": true },
+      "reconcile_tolerance": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 1,
+        "description": "state 聚合与 runs.jsonl 重算的允许相对偏差。"
+      }
+    }
+  },
+  "exit_codes": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "ok",
+      "waiting_human",
+      "budget_exceeded",
+      "infra_error",
+      "review_blocked",
+      "verify_exhausted",
+      "lock_conflict",
+      "state_corrupt",
+      "invalid_config"
+    ],
+    "properties": {
+      "ok": { "const": 0 },
+      "waiting_human": { "type": "integer", "minimum": 1, "maximum": 125 },
+      "budget_exceeded": { "type": "integer", "minimum": 1, "maximum": 125 },
+      "infra_error": { "type": "integer", "minimum": 1, "maximum": 125 },
+      "review_blocked": { "type": "integer", "minimum": 1, "maximum": 125 },
+      "verify_exhausted": { "type": "integer", "minimum": 1, "maximum": 125 },
+      "lock_conflict": { "type": "integer", "minimum": 1, "maximum": 125 },
+      "state_corrupt": { "type": "integer", "minimum": 1, "maximum": 125 },
+      "invalid_config": { "type": "integer", "minimum": 1, "maximum": 125 }
+    }
+  }
+  },
+  "$defs": {
+    "workstation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "provider", "model", "inputs", "outputs", "gate"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "enum": ["plan", "build", "i18n", "verify", "rca", "review", "merge"]
+        },
+        "provider": {
+          "type": ["string", "null"],
+          "enum": ["deepseek", null]
+        },
+        "model": { "type": ["string", "null"], "maxLength": 80 },
+        "inputs": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1, "maxLength": 200 }
+        },
+        "outputs": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1, "maxLength": 200 }
+        },
+        "gate": {
+          "type": "string",
+          "enum": [
+            "human_confirm",
+            "scope_and_test_integrity",
+            "key_parity",
+            "ci",
+            "reproduction_confirmed",
+            "schema_and_verdict",
+            "human_approval"
+          ]
+        }
+      }
+    },
+    "route": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider", "model", "purpose", "temperature", "max_output_tokens"],
+      "properties": {
+        "provider": { "type": "string", "enum": ["deepseek"] },
+        "model": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "purpose": {
+          "type": "string",
+          "enum": ["planner", "builder", "i18n", "rca", "reviewer"]
+        },
+        "temperature": { "type": "number", "minimum": 0, "maximum": 2 },
+        "max_output_tokens": {
+          "type": "integer",
+          "minimum": 256,
+          "maximum": 16000
+        }
+      }
+    },
+    "moneyCny": {
+      "type": "number",
+      "minimum": 0,
+      "description": "CNY，保留 6 位小数。"
+    },
+    "glob": { "type": "string", "minLength": 1, "maxLength": 300 },
+    "stageName": {
+      "type": "string",
+      "enum": [
+        "schema",
+        "scope",
+        "test_integrity",
+        "typecheck",
+        "lint",
+        "unit",
+        "invariant",
+        "i18n_parity",
+        "build",
+        "security"
+      ]
+    }
+  }
+}
+
