@@ -15,9 +15,11 @@
 //
 // 退出码：0 通过 / 1 存在违规 / 2 用法或配置错误。
 
+import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { pathAllowed } from '../src/bid/config.mjs';
 
 const ROOT = resolve(process.cwd());
 const P = (rel) => join(ROOT, rel);
@@ -34,16 +36,16 @@ const EXIT = { ok: 0, failed: 1, config: 2 };
 
 // 与 chain/schemas/verify.schema.json 的 stage.name 枚举保持同一集合
 const ALL_STAGES = ['schema', 'scope', 'test_integrity', 'typecheck', 'lint', 'unit', 'invariant', 'i18n_parity', 'build', 'security'];
-const IMPLEMENTED_STAGES = new Set(['schema', 'invariant']);
+const IMPLEMENTED_STAGES = new Set(ALL_STAGES);
 const STAGE_PENDING = {
-  scope: '待实现：需 base_commit..worktree 的 diff 与任务卡 allowed_paths 比对',
-  test_integrity: '待实现：需断言计数与 skip 标记扫描',
-  typecheck: '待实现：需 tsc --noEmit（typescript 未安装）',
-  lint: '待实现：需 eslint（未安装）',
-  unit: '待实现：需 vitest（未安装）',
-  i18n_parity: '待实现：需 locales/*.json 键集合比对',
-  build: '待实现：需构建产物校验',
-  security: '待实现：需密钥/危险调用扫描'
+  scope: '已实现：git diff/untracked + allowed_paths 比对',
+  test_integrity: '已实现：删除测试/skip 标记/断言计数',
+  typecheck: '已实现：JS 语法检查（本仓库无 tsconfig）',
+  lint: '已实现：git diff --check + debugger 扫描',
+  unit: '已实现：node_modules/vitest 或 pnpm test',
+  i18n_parity: '已实现：locales/*.json 键集合比对',
+  build: '已实现：静态页/入口语法检查',
+  security: '已实现：密钥/危险调用扫描'
 };
 
 class VerifyError extends Error {
@@ -200,6 +202,298 @@ function failures(run) {
 
 function warn(run, id, detail) {
   run.warnings.push({ id, detail: String(detail) });
+}
+
+// ---------------- 通用执行助手（scope/test/unit/build 共用） ----------------
+
+function runGit(args) {
+  return spawnSync('git', args, {
+    cwd: ROOT,
+    encoding: 'utf8',
+    maxBuffer: 16 * 1024 * 1024
+  });
+}
+
+function runCommand(command, args) {
+  return spawnSync(command, args, {
+    cwd: ROOT,
+    encoding: 'utf8',
+    maxBuffer: 16 * 1024 * 1024
+  });
+}
+
+function walkFiles(relDir, out = []) {
+  const abs = P(relDir);
+  if (!existsSync(abs)) return out;
+  for (const entry of readdirSync(abs, { withFileTypes: true })) {
+    const rel = `${relDir.replace(/\/$/, '')}/${entry.name}`;
+    if (entry.isDirectory()) {
+      if (entry.name === 'node_modules' || entry.name === '.git') continue;
+      walkFiles(rel, out);
+    } else if (entry.isFile()) {
+      out.push(rel);
+    }
+  }
+  return out;
+}
+
+function isCodePath(rel) {
+  if (!rel) return false;
+  if (/^(node_modules|reports|tasks|chain|scope|docs|locales|\.git|\.github|\.githooks)\//.test(rel)) {
+    return false;
+  }
+  if (/^(index\.html|admin\.html|login\.html|register\.html|server\.js|package\.json|\.env\.example|\.gitignore|README\.md)$/.test(rel)) {
+    return true;
+  }
+  return /^(src|tests|bids)\//.test(rel) || /\.(m?js|html|json|css)$/.test(rel);
+}
+
+function changedCodePaths() {
+  const paths = new Set();
+  for (const args of [
+    ['diff', '--name-only', 'HEAD'],
+    ['diff', '--cached', '--name-only', 'HEAD'],
+    ['ls-files', '--others', '--exclude-standard']
+  ]) {
+    const r = runGit(args);
+    if (r.status !== 0) continue;
+    for (const line of String(r.stdout || '').split(/\r?\n/)) {
+      const rel = line.trim().replace(/\\/g, '/');
+      if (rel && isCodePath(rel)) paths.add(rel);
+    }
+  }
+  return [...paths].sort();
+}
+
+// ---------------- 阶段 2-9：scope / 测试完整性 / 语法 / lint / unit / i18n / build / security ----------------
+
+function stageScope(run, ctx) {
+  const paths = changedCodePaths();
+  const allowed = ctx.card.front.allowed_paths || [];
+  const forbidden = [
+    ...(ctx.card.front.forbidden_paths || []),
+    ...(ctx.cfg.policy.protected_paths || []),
+    ...(ctx.cfg.policy.scope?.always_forbidden_paths || [])
+  ];
+  const outOfScope = paths.filter(
+    (rel) => !pathAllowed(rel, allowed) || pathAllowed(rel, forbidden)
+  );
+  record(
+    run,
+    'scope',
+    'scope.allowed_paths',
+    outOfScope.length === 0,
+    outOfScope.length === 0
+      ? `代码改动 ${paths.length} 个，全部在 allowed_paths 内`
+      : `越界文件：${outOfScope.join(', ')}`
+  );
+}
+
+function stageTestIntegrity(run, ctx) {
+  const changed = changedCodePaths();
+  const testPaths = changed.filter((rel) => rel.startsWith('tests/'));
+  const deleted = new Set();
+  for (const args of [
+    ['diff', '--diff-filter=D', '--name-only', 'HEAD'],
+    ['diff', '--cached', '--diff-filter=D', '--name-only', 'HEAD']
+  ]) {
+    const r = runGit(args);
+    if (r.status !== 0) continue;
+    for (const line of String(r.stdout || '').split(/\r?\n/)) {
+      const rel = line.trim().replace(/\\/g, '/');
+      if (rel.startsWith('tests/')) deleted.add(rel);
+    }
+  }
+  record(
+    run,
+    'test_integrity',
+    'test_integrity.no_test_deletion',
+    deleted.size === 0,
+    deleted.size === 0 ? '没有删除测试文件' : `删除测试：${[...deleted].join(', ')}`
+  );
+
+  const skipPattern = /(?:\.skip|\.todo|it\.skip|test\.skip|describe\.skip)\s*\(/;
+  const skipHits = [];
+  const diff = runGit(['diff', '-U0', 'HEAD']);
+  if (diff.status === 0) {
+    for (const line of String(diff.stdout || '').split(/\r?\n/)) {
+      if (line.startsWith('+') && !line.startsWith('+++') && skipPattern.test(line)) {
+        skipHits.push(line.slice(1, 160));
+      }
+    }
+  }
+  for (const rel of testPaths) {
+    if (!existsSync(P(rel))) continue;
+    const text = readFileSync(P(rel), 'utf8');
+    if (skipPattern.test(text)) skipHits.push(`${rel} 含 skip/todo`);
+  }
+  record(
+    run,
+    'test_integrity',
+    'test_integrity.no_skip_added',
+    skipHits.length === 0,
+    skipHits.length === 0 ? '新增/修改测试没有 skip/todo' : skipHits.join(' | ')
+  );
+
+  const testFiles = walkFiles('tests').filter((rel) => /\.(test|spec)\.[cm]?js$/.test(rel));
+  let assertions = 0;
+  for (const rel of testFiles) {
+    assertions += (readFileSync(P(rel), 'utf8').match(/\bexpect\s*\(/g) || []).length;
+  }
+  record(
+    run,
+    'test_integrity',
+    'test_integrity.assertions_present',
+    assertions > 0,
+    `${testFiles.length} 个测试文件，${assertions} 个 expect`
+  );
+}
+
+function stageTypecheck(run) {
+  const files = ['server.js', ...walkFiles('src').filter((rel) => /\.(m?js|ts)$/.test(rel))];
+  const failures = [];
+  for (const rel of files) {
+    const r = runCommand(process.execPath, ['--check', rel]);
+    if (r.status !== 0) failures.push(`${rel}: ${(r.stderr || r.stdout || '').trim().split(/\r?\n/)[0]}`);
+  }
+  record(
+    run,
+    'typecheck',
+    'typecheck.js_syntax',
+    failures.length === 0,
+    failures.length === 0
+      ? `${files.length} 个 JS/MJS 文件语法通过（仓库无 tsconfig）`
+      : failures.join(' | ')
+  );
+}
+
+function stageLint(run) {
+  const diffCheck = runGit(['diff', '--check', 'HEAD']);
+  record(
+    run,
+    'lint',
+    'lint.whitespace',
+    diffCheck.status === 0,
+    diffCheck.status === 0 ? 'diff 无空白错误' : String(diffCheck.stdout || diffCheck.stderr || '').slice(0, 300)
+  );
+
+  const debuggerHits = [];
+  for (const rel of ['server.js', ...walkFiles('src')]) {
+    if (!/\.(m?js|ts)$/.test(rel)) continue;
+    const text = readFileSync(P(rel), 'utf8');
+    if (/\bdebugger\b/.test(text)) debuggerHits.push(rel);
+  }
+  record(
+    run,
+    'lint',
+    'lint.no_debugger',
+    debuggerHits.length === 0,
+    debuggerHits.length === 0 ? '没有 debugger 语句' : debuggerHits.join(', ')
+  );
+}
+
+function stageUnit(run) {
+  const vitest = P('node_modules/vitest/vitest.mjs');
+  const r = existsSync(vitest)
+    ? runCommand(process.execPath, [vitest, 'run', '--reporter=basic'])
+    : runCommand('pnpm', ['test']);
+  const lines = String(`${r.stdout || ''}\n${r.stderr || ''}`)
+    .split(/\r?\n/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const summary = lines.find((s) => /Tests?\s+\d+|failed|passed/i.test(s)) || lines.at(-1) || '';
+  record(
+    run,
+    'unit',
+    'unit.vitest',
+    r.status === 0,
+    r.status === 0 ? summary.slice(0, 300) : summary.slice(0, 300) || 'vitest 失败'
+  );
+}
+
+function flattenKeys(value, prefix = '', out = []) {
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    for (const [key, child] of Object.entries(value)) {
+      flattenKeys(child, prefix ? `${prefix}.${key}` : key, out);
+    }
+  } else {
+    out.push(prefix);
+  }
+  return out;
+}
+
+function stageI18nParity(run) {
+  const dir = P('locales');
+  const files = existsSync(dir)
+    ? readdirSync(dir).filter((name) => name.endsWith('.json') && !name.startsWith('.'))
+    : [];
+  if (files.length <= 1) {
+    record(run, 'i18n_parity', 'i18n_parity.single_locale', true, files.length === 0 ? '无 locale 文件，按单语言通过' : `只有 ${files[0]}，按单语言通过`);
+    return;
+  }
+  const keySets = new Map();
+  for (const name of files) {
+    let parsed = {};
+    try {
+      const raw = readFileSync(join(dir, name), 'utf8').trim();
+      parsed = raw ? JSON.parse(raw) : {};
+    } catch {
+      record(run, 'i18n_parity', `i18n_parity.${name}`, false, `${name} 不是合法 JSON`);
+      continue;
+    }
+    keySets.set(name, new Set(flattenKeys(parsed)));
+  }
+  const base = [...keySets.keys()].sort()[0];
+  const missing = [];
+  for (const [name, keys] of keySets) {
+    if (name === base) continue;
+    for (const key of keySets.get(base)) {
+      if (!keys.has(key)) missing.push(`${name}:${key}`);
+    }
+  }
+  record(run, 'i18n_parity', 'i18n_parity.key_parity', missing.length === 0, missing.length === 0 ? `${files.length} 个 locale 键一致` : missing.slice(0, 10).join(', '));
+}
+
+function stageBuild(run) {
+  const required = ['index.html', 'server.js'];
+  const problems = [];
+  for (const rel of required) {
+    if (!existsSync(P(rel)) || statSync(P(rel)).size === 0) problems.push(`${rel} 缺失或为空`);
+  }
+  const syntax = runCommand(process.execPath, ['--check', 'server.js']);
+  if (syntax.status !== 0) problems.push('server.js 语法失败');
+  const bidIndex = 'src/bid/index.mjs';
+  if (existsSync(P(bidIndex))) {
+    const r = runCommand(process.execPath, ['--check', bidIndex]);
+    if (r.status !== 0) problems.push('src/bid/index.mjs 语法失败');
+  }
+  record(
+    run,
+    'build',
+    'build.static_entry',
+    problems.length === 0,
+    problems.length === 0 ? '静态入口与 server.js 语法通过' : problems.join(' | ')
+  );
+}
+
+function stageSecurity(run) {
+  const patterns = [
+    { id: 'eval', re: /\beval\s*\(/ },
+    { id: 'new-function', re: /\bnew\s+Function\s*\(/ },
+    { id: 'tls-disabled', re: /NODE_TLS_REJECT_UNAUTHORIZED\s*=\s*['"]?0/ },
+    { id: 'private-key', re: /BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY/ },
+    { id: 'aws-key', re: /AKIA[0-9A-Z]{16}/ },
+    { id: 'openai-key', re: /\bsk-[A-Za-z0-9]{20,}/ }
+  ];
+  const files = ['server.js', ...walkFiles('src'), 'index.html', 'login.html', 'register.html', 'admin.html'].filter((rel) => existsSync(P(rel)));
+  const hits = [];
+  for (const rel of files) {
+    const text = readFileSync(P(rel), 'utf8');
+    for (const p of patterns) {
+      if (p.re.test(text)) hits.push(`${rel}:${p.id}`);
+    }
+  }
+  record(run, 'security', 'security.no_secret_or_eval', hits.length === 0, hits.length === 0 ? `${files.length} 个文件未命中危险模式` : hits.join(', '));
 }
 
 // ---------------- 阶段 1：配置预检（不依赖 ajv / 不联网） ----------------
@@ -733,8 +1027,24 @@ function runVerify({ taskId, stages, bidsDir, onlyIds = null }) {
     if (s === 'schema') {
       stageSchema(run, ctx);
       stageTaskCard(run, ctx);
+    } else if (s === 'scope') {
+      stageScope(run, ctx);
+    } else if (s === 'test_integrity') {
+      stageTestIntegrity(run, ctx);
+    } else if (s === 'typecheck') {
+      stageTypecheck(run);
+    } else if (s === 'lint') {
+      stageLint(run);
+    } else if (s === 'unit') {
+      stageUnit(run);
     } else if (s === 'invariant') {
       stageInvariant(run, ctx);
+    } else if (s === 'i18n_parity') {
+      stageI18nParity(run);
+    } else if (s === 'build') {
+      stageBuild(run);
+    } else if (s === 'security') {
+      stageSecurity(run);
     }
     ran.push(s);
   }
