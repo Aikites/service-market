@@ -347,6 +347,17 @@ function stageTestIntegrity(run, ctx) {
     assertions > 0,
     `${testFiles.length} 个测试文件，${assertions} 个 expect`
   );
+
+  for (const required of ctx.card.front.required_tests || []) {
+    const present = typeof required.file === 'string' && existsSync(P(required.file));
+    record(
+      run,
+      'test_integrity',
+      `test_integrity.required.${required.id}`,
+      present,
+      present ? `${required.file} 存在` : `缺少 required test：${required.file}`
+    );
+  }
 }
 
 function stageTypecheck(run) {
