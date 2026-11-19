@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "review_id": "T-001-A01-review-001",
+  "task_id": "T-001",
+  "attempt_id": "T-001-A01",
+  "base_commit": "1d5b0ecf63af112a335f6d9d48bf2ab0f356bd4e",
+  "commit": "1d5b0ecf63af112a335f6d9d48bf2ab0f356bd4e",
+  "diff_hash": "sha256:8f9e33647ce0056181ecfd5f4d9a1bf9c2d8fca1e5e7991aa3f67104fc0441e2",
+  "truncated": false,
+  "reviewer": {
+    "provider": "deepseek",
+    "model": "deepseek-reasoner",
+    "model_version": null,
+    "prompt_hash": "sha256:8896f1b266a6616436a4eccfcb0793cd2f64b07a73d5a242205eb679615aff5d"
+  },
+  "verdict": "needs_human",
+  "findings": [
+    {
+      "id": "F1",
+      "file": "scripts/verify.mjs",
+      "line": 36,
+      "hunk": "@@ -36,1 +36,1 @@",
+      "severity": "high",
+      "category": "tests",
+      "invariant_id": null,
+      "issue": "verify 的 10 个阶段只实现了 schema 和 invariant；scope、test_integrity、typecheck、lint、i18n、build、security 仍为 skipped。",
+      "evidence": "reports/T-001/attempt-01/verify.log 与 verify.json 的 stages 明确标记 skipped；不能把当前 passed 当成完整 CI 门禁。",
+      "suggestion": "在冻结 T-001 前补齐缺失阶段，或由人类明确接受跳过项并记录风险。",
+      "must_fix": true
+    },
+    {
+      "id": "F2",
+      "file": "server.js",
+      "line": 278,
+      "hunk": "@@ -278,1 +278,1 @@",
+      "severity": "medium",
+      "category": "security",
+      "invariant_id": null,
+      "issue": "handle() 的 500 响应直接返回 error.message，可能把文件路径或内部异常暴露给客户端。",
+      "evidence": "server.js:278 `return sendJson(res, 500, { ok: false, error: error.message }, method);`",
+      "suggestion": "对外返回固定错误文案，内部只写日志；T-002 认证接口也应遵守。",
+      "must_fix": false
+    },
+    {
+      "id": "F3",
+      "file": "server.js",
+      "line": 272,
+      "hunk": "@@ -272,1 +272,1 @@",
+      "severity": "medium",
+      "category": "correctness",
+      "invariant_id": null,
+      "issue": "admin.html 是 0 字节，sendFile() 对 size=0 直接 404；/admin.html 实际不可访问。",
+      "evidence": "admin.html 0 字节；server.js:209 拒绝 size=0 文件。",
+      "suggestion": "T-002 填充 admin.html 并加 ADMIN 角色保护；T-001 先保持明确占位。",
+      "must_fix": false
+    },
+    {
+      "id": "F4",
+      "file": "tasks/T-001.md",
+      "line": 6,
+      "hunk": "@@ -6,1 +6,1 @@",
+      "severity": "high",
+      "category": "other",
+      "invariant_id": null,
+      "issue": "T-001 仍是 draft，human_approval 三项为空；本报告不能替代人工冻结。",
+      "evidence": "tasks/T-001.md front-matter: status=draft, approved_by/approved_at/task_sha256=null。",
+      "suggestion": "人工确认后填写 approval 与 task_sha256，并把 status 改为 confirmed；T-002 依赖此步。",
+      "must_fix": true
+    }
+  ],
+  "test_gaps": [
+    {
+      "behavior": "T-001 的 verify 缺少 scope/test_integrity/typecheck/lint/i18n/build/security 七个阶段的真实执行",
+      "suggested_test": "node scripts/verify.mjs --task T-001",
+      "severity": "high"
+    },
+    {
+      "behavior": "T-002 的注册/登录/会话/角色中间件尚未实现，竞标大厅没有账号保护",
+      "suggested_test": "tests/auth/register.test.mjs 等四个 required tests",
+      "severity": "medium"
+    }
+  ],
+  "invariant_coverage": [
+    { "id": "INV-001", "covered": true, "test_ids": ["bid-ranking-by-weight"] },
+    { "id": "INV-002", "covered": true, "test_ids": ["budget-gate-rejects-over-cap"] },
+    { "id": "INV-003", "covered": true, "test_ids": ["bid-ranking-by-weight"] }
+  ],
+  "confidence": 0.9,
+  "summary": "T-001 的竞标评分、预算闸门和 19 个既有测试已通过；但 verify 仍有 7 个阶段 skipped，T-001 未人工冻结，admin.html 为空。建议人类确认范围后再冻结，不能把当前报告当成完整 CI 门禁。",
+  "created_at": "2026-11-19T06:34:00.000Z"
+}

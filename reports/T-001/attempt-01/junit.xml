@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuites name="vitest tests" tests="19" failures="0" errors="0" time="1.049">
+    <testsuite name="tests/bid/budget-guard.test.mjs" timestamp="2026-11-19T06:31:27.066Z" hostname="DESKTOP-4LCDL5J" tests="9" failures="0" errors="0" skipped="0" time="0.0163872">
+        <testcase classname="tests/bid/budget-guard.test.mjs" name="预算闸门 &gt; 空 state 标记 empty_state，缺失 state 标记 assumed_zero" time="0.0018934">
+        </testcase>
+        <testcase classname="tests/bid/budget-guard.test.mjs" name="预算闸门 &gt; 从 state 读出已花费并计算剩余" time="0.0004771">
+        </testcase>
+        <testcase classname="tests/bid/budget-guard.test.mjs" name="预算闸门 &gt; 已花费超过上限时剩余按 0 截断，不出现负数" time="0.0017822">
+        </testcase>
+        <testcase classname="tests/bid/budget-guard.test.mjs" name="预算闸门 &gt; 损坏 state 或上限不一致必须显式报错" time="0.0028852">
+        </testcase>
+        <testcase classname="tests/bid/budget-guard.test.mjs" name="预算闸门 &gt; 超过单任务上限判 G3，超过当日剩余判 G4" time="0.0029927">
+        </testcase>
+        <testcase classname="tests/bid/budget-guard.test.mjs" name="预算闸门 &gt; 闸门阈值来自标书和 policy，不是硬编码" time="0.0013224">
+        </testcase>
+        <testcase classname="tests/bid/budget-guard.test.mjs" name="预算闸门 &gt; 报价恰好等于上限时放行，剩余为 0 时只拦超额报价" time="0.0022434">
+        </testcase>
+        <testcase classname="tests/bid/budget-guard.test.mjs" name="预算闸门 &gt; 复算成本与价格表一致，未知模型返回 null" time="0.0003111">
+        </testcase>
+        <testcase classname="tests/bid/budget-guard.test.mjs" name="预算闸门 &gt; 日上限变化会同步改变可用余额" time="0.0009808">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/bid/review-bids.test.mjs" timestamp="2026-11-19T06:31:27.079Z" hostname="DESKTOP-4LCDL5J" tests="10" failures="0" errors="0" skipped="0" time="0.0498863">
+        <testcase classname="tests/bid/review-bids.test.mjs" name="竞标评分与定标 &gt; 三项权重必须归一且都在 0~1 区间" time="0.0037332">
+        </testcase>
+        <testcase classname="tests/bid/review-bids.test.mjs" name="竞标评分与定标 &gt; 超预算投标被 G3/G4 废标，合格投标按权重排出 0.57 / 0.55" time="0.0081086">
+        </testcase>
+        <testcase classname="tests/bid/review-bids.test.mjs" name="竞标评分与定标 &gt; 单项得分按 min/max 线性归一，公式与标书一致" time="0.000841">
+        </testcase>
+        <testcase classname="tests/bid/review-bids.test.mjs" name="竞标评分与定标 &gt; 方案质量按 rubric 命中条数计分" time="0.0009755">
+        </testcase>
+        <testcase classname="tests/bid/review-bids.test.mjs" name="竞标评分与定标 &gt; 总分、报价、周期都相同时按 agent_id 字典序稳定排序" time="0.0249472">
+        </testcase>
+        <testcase classname="tests/bid/review-bids.test.mjs" name="竞标评分与定标 &gt; 合格投标少于 min_bids 时不产生中标" time="0.0014982">
+        </testcase>
+        <testcase classname="tests/bid/review-bids.test.mjs" name="竞标评分与定标 &gt; 同一批投标重复评审结果完全一致" time="0.0029026">
+        </testcase>
+        <testcase classname="tests/bid/review-bids.test.mjs" name="竞标评分与定标 &gt; G1/G2/G5/G6/G7/G8 各自能拦住对应投标" time="0.0022676">
+        </testcase>
+        <testcase classname="tests/bid/review-bids.test.mjs" name="竞标评分与定标 &gt; 允许路径内的投标不触发 G7" time="0.0011144">
+        </testcase>
+        <testcase classname="tests/bid/review-bids.test.mjs" name="竞标评分与定标 &gt; 标书解析只认正文里带 bidding 的 JSON 块" time="0.0013709">
+        </testcase>
+    </testsuite>
+</testsuites>

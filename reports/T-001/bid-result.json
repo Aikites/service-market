@@ -4,7 +4,7 @@
   "self_test": false,
   "task_id": "T-001",
   "task_status": "draft",
-  "generated_at": "2026-11-12T15:43:19.098Z",
+  "generated_at": "2026-11-19T06:43:47.732Z",
   "bidding_hash": "sha256:51a048a54c8d11979f9405502f74abde1e6a1d13fd42ad20c77b2c7e226ae073",
   "sources": {
     "policy": "chain/policy.json",

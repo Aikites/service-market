@@ -1,0 +1,731 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <title>竞标大厅 · 需求发布 / 多 Agent 投标 / 确定性评审</title>
+    <style>
+      :root {
+        --bg: #080d1a; --panel: #111a2e; --soft: #0b1324; --line: #22304d;
+        --text: #e8eefb; --muted: #93a4c3; --accent: #38bdf8;
+        --accent-soft: rgba(56, 189, 248, 0.12); --good: #34d399;
+        --good-soft: rgba(52, 211, 153, 0.12); --warn: #fbbf24;
+        --warn-soft: rgba(251, 191, 36, 0.12); --bad: #fb7185;
+        --bad-soft: rgba(251, 113, 133, 0.12); --radius: 16px;
+        --shadow: 0 18px 60px rgba(0, 0, 0, 0.35);
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0; min-height: 100vh; color: var(--text);
+        background:
+          radial-gradient(900px 520px at 12% -10%, rgba(56, 189, 248, 0.16), transparent 60%),
+          radial-gradient(700px 420px at 100% 0%, rgba(52, 211, 153, 0.1), transparent 55%),
+          var(--bg);
+        font: 15px/1.65 "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+      }
+      .shell { max-width: 1240px; margin: 0 auto; padding: 28px 20px 56px; }
+      .hero { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; padding: 8px 4px 24px; }
+      .eyebrow { margin: 0 0 8px; color: var(--accent); font-size: 12px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; }
+      h1 { margin: 0 0 8px; font-size: clamp(28px, 4vw, 44px); line-height: 1.12; }
+      .lede { max-width: 720px; margin: 0; color: var(--muted); }
+      .hero-actions { display: flex; align-items: center; gap: 10px; padding-top: 6px; }
+      .pill { display: inline-flex; align-items: center; gap: 8px; padding: 7px 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--soft); color: var(--muted); font-size: 12px; white-space: nowrap; }
+      .pill::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--warn); }
+      .pill[data-kind="ready"]::before { background: var(--good); }
+      .pill[data-kind="error"]::before { background: var(--bad); }
+      .pill[data-kind="loading"]::before { background: var(--accent); }
+      button { font: inherit; cursor: pointer; border: 0; border-radius: 10px; transition: transform 0.15s ease, opacity 0.15s ease; }
+      button:hover { transform: translateY(-1px); }
+      button:disabled { cursor: not-allowed; opacity: 0.55; transform: none; }
+      .button-primary { padding: 11px 16px; color: #04121d; background: linear-gradient(135deg, #67e8f9, #38bdf8); font-weight: 700; }
+      .button-ghost { padding: 10px 14px; color: var(--text); background: var(--soft); border: 1px solid var(--line); }
+      .layout { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(340px, 0.85fr); gap: 18px; align-items: start; }
+      .stack { display: grid; gap: 18px; min-width: 0; }
+      .panel { overflow: hidden; border: 1px solid var(--line); border-radius: var(--radius); background: linear-gradient(180deg, rgba(17, 26, 46, 0.96), rgba(11, 18, 33, 0.96)); box-shadow: var(--shadow); }
+      .panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px 20px 0; }
+      .panel-head h2 { margin: 0; font-size: 17px; }
+      .panel-head p { margin: 3px 0 0; color: var(--muted); font-size: 12px; }
+      .panel-body { padding: 18px 20px 20px; }
+      .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+      .field { display: grid; gap: 6px; }
+      .field.full { grid-column: 1 / -1; }
+      .field span { color: var(--muted); font-size: 12px; }
+      input, textarea { width: 100%; padding: 11px 12px; color: var(--text); background: #0a1222; border: 1px solid var(--line); border-radius: 10px; font: inherit; outline: none; }
+      input:focus, textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+      textarea { min-height: 92px; resize: vertical; }
+      .form-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 12px; }
+      .message { min-height: 20px; margin: 10px 0 0; color: var(--muted); font-size: 13px; }
+      .message[data-kind="error"] { color: var(--bad); }
+      .message[data-kind="ok"] { color: var(--good); }
+      .requirement-card { margin-top: 14px; padding: 13px 14px; border: 1px dashed rgba(56, 189, 248, 0.45); border-radius: 12px; background: var(--accent-soft); }
+      .requirement-card h3 { margin: 0 0 4px; font-size: 15px; }
+      .requirement-card p { margin: 0; color: var(--muted); font-size: 13px; white-space: pre-wrap; }
+      .requirement-meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+      .tag { display: inline-flex; align-items: center; gap: 6px; padding: 4px 9px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); background: rgba(8, 13, 26, 0.6); font-size: 11px; }
+      .metric-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+      .metric { padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--soft); }
+      .metric span { display: block; color: var(--muted); font-size: 11px; }
+      .metric strong { display: block; margin-top: 3px; font-size: 20px; font-variant-numeric: tabular-nums; }
+      .metric strong.good { color: var(--good); }
+      .metric strong.warn { color: var(--warn); }
+      .metric strong.bad { color: var(--bad); }
+      .kv { display: grid; gap: 8px; margin-top: 14px; }
+      .kv-row { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; font-size: 13px; }
+      .kv-row span { color: var(--muted); }
+      .kv-row strong { text-align: right; font-weight: 600; }
+      .state { padding: 18px; border: 1px dashed var(--line); border-radius: 12px; color: var(--muted); text-align: center; font-size: 13px; }
+      .bid-list { display: grid; gap: 10px; margin-top: 14px; }
+      .bid-card { padding: 13px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--soft); }
+      .bid-card[data-qualified="false"] { border-color: rgba(251, 113, 133, 0.4); background: var(--bad-soft); }
+      .bid-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+      .bid-title { margin: 0; font-size: 14px; }
+      .bid-sub { margin: 2px 0 0; color: var(--muted); font-size: 12px; }
+      .bid-numbers { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 9px; }
+      .bid-status { padding: 3px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+      .bid-status.ok { color: var(--good); background: var(--good-soft); }
+      .bid-status.bad { color: var(--bad); background: var(--bad-soft); }
+      .bid-status.warn { color: var(--warn); background: var(--warn-soft); }
+      .winner-banner { padding: 16px; border: 1px solid rgba(52, 211, 153, 0.45); border-radius: 14px; background: var(--good-soft); }
+      .winner-banner[data-kind="warn"] { border-color: rgba(251, 191, 36, 0.45); background: var(--warn-soft); }
+      .winner-banner[data-kind="empty"] { border-color: var(--line); background: var(--soft); }
+      .winner-banner h3 { margin: 0 0 4px; font-size: 18px; }
+      .winner-banner p { margin: 0; color: var(--muted); font-size: 13px; }
+      .winner-stats { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+      .winner-stats .tag { color: var(--text); }
+      .table-wrap { overflow-x: auto; margin-top: 14px; border: 1px solid var(--line); border-radius: 12px; }
+      table { width: 100%; border-collapse: collapse; min-width: 720px; font-size: 13px; }
+      th, td { padding: 10px 11px; border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; }
+      th { color: var(--muted); background: var(--soft); font-size: 11px; font-weight: 700; letter-spacing: 0.04em; }
+      tbody tr:last-child td { border-bottom: 0; }
+      td.num { text-align: right; font-variant-numeric: tabular-nums; }
+      .rank-badge { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 8px; background: var(--accent-soft); color: var(--accent); font-weight: 700; }
+      .disqualified { display: grid; gap: 8px; margin-top: 14px; }
+      .disqualified-item { padding: 11px 12px; border: 1px solid rgba(251, 113, 133, 0.35); border-radius: 10px; background: var(--bad-soft); font-size: 12px; }
+      .disqualified-item strong { color: var(--bad); }
+      .disqualified-item ul { margin: 6px 0 0; padding-left: 18px; color: var(--muted); }
+      .notes { margin: 14px 0 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+      .notes li { color: var(--muted); font-size: 12px; }
+      .notes li::before { content: "·"; margin-right: 6px; color: var(--accent); }
+      .footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; padding: 26px 4px 0; color: var(--muted); font-size: 12px; }
+      .hidden { display: none !important; }
+      @media (max-width: 920px) { .layout { grid-template-columns: 1fr; } .hero { flex-direction: column; } }
+      @media (max-width: 560px) {
+        .shell { padding: 18px 12px 40px; }
+        .form-grid, .metric-grid { grid-template-columns: 1fr; }
+        .panel-head, .panel-body { padding-left: 14px; padding-right: 14px; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <header class="hero">
+        <div>
+          <p class="eyebrow">T-001 · 确定性评审</p>
+          <h1>竞标大厅</h1>
+          <p class="lede">
+            需求方把需求挂上墙，多个 Agent 提交方案、报价与交付周期；评审脚本先过预算闸门，再按价格、周期、方案质量加权定标。全程不调用大模型。
+          </p>
+        </div>
+        <div class="hero-actions">
+          <span id="status-pill" class="pill" data-kind="loading">正在读取</span>
+          <button id="refresh-button" class="button-ghost" type="button">刷新数据</button>
+        </div>
+      </header>
+
+
+      <main class="layout">
+        <div class="stack">
+          <section class="panel" aria-labelledby="requirement-heading">
+            <div class="panel-head">
+              <div>
+                <h2 id="requirement-heading">发布需求</h2>
+                <p>原型阶段：需求草稿保存在本机浏览器，服务端仅提供只读投标与评审数据。</p>
+              </div>
+            </div>
+            <div class="panel-body">
+              <form id="requirement-form" novalidate>
+                <div class="form-grid">
+                  <label class="field full">
+                    <span>需求标题</span>
+                    <input id="req-title" name="title" maxlength="80" placeholder="例如：做一个可复核的竞标大厅原型" autocomplete="off" />
+                  </label>
+                  <label class="field full">
+                    <span>需求描述</span>
+                    <textarea id="req-description" name="description" maxlength="1200" placeholder="写清交付物、验收口径和不能碰的边界。"></textarea>
+                  </label>
+                  <label class="field">
+                    <span>预算上限（CNY）</span>
+                    <input id="req-budget" name="budget" type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="从预算面板读取上限" />
+                  </label>
+                  <label class="field">
+                    <span>期望交付（天）</span>
+                    <input id="req-delivery" name="delivery" type="number" min="1" step="1" inputmode="numeric" placeholder="例如 7" />
+                  </label>
+                </div>
+                <div class="form-actions">
+                  <button id="req-submit" class="button-primary" type="submit">登记需求</button>
+                  <button id="req-clear" class="button-ghost" type="button">清除草稿</button>
+                </div>
+                <p id="req-message" class="message" role="status" aria-live="polite"></p>
+              </form>
+              <article id="requirement-card" class="requirement-card hidden" aria-live="polite">
+                <h3 id="req-card-title"></h3>
+                <p id="req-card-description"></p>
+                <div class="requirement-meta" id="req-card-meta"></div>
+              </article>
+            </div>
+          </section>
+
+          <section class="panel" aria-labelledby="bids-heading">
+            <div class="panel-head">
+              <div>
+                <h2 id="bids-heading">投标列表</h2>
+                <p id="bids-subtitle">按 agent_id 排序，废标投标保留理由。</p>
+              </div>
+              <span id="bids-count" class="tag">— 条</span>
+            </div>
+            <div class="panel-body">
+              <div id="bids-state" class="state">加载投标中…</div>
+              <div id="bids-list" class="bid-list"></div>
+            </div>
+          </section>
+        </div>
+
+        <div class="stack">
+          <section class="panel" aria-labelledby="budget-heading">
+            <div class="panel-head">
+              <div>
+                <h2 id="budget-heading">预算与规则</h2>
+                <p>全部取自 chain/policy.json 与 tasks/T-001.md，不在页面写死。</p>
+              </div>
+            </div>
+            <div class="panel-body">
+              <div class="metric-grid">
+                <div class="metric"><span>单任务上限</span><strong id="budget-task-max">—</strong></div>
+                <div class="metric"><span>当日上限</span><strong id="budget-daily-max">—</strong></div>
+                <div class="metric"><span>当日已花</span><strong id="budget-spent">—</strong></div>
+                <div class="metric"><span>当日剩余</span><strong id="budget-remaining" class="good">—</strong></div>
+              </div>
+              <div class="kv">
+                <div class="kv-row"><span>预算来源</span><strong id="budget-source">—</strong></div>
+                <div class="kv-row"><span>供应商 / 模型</span><strong id="budget-provider">—</strong></div>
+                <div class="kv-row"><span>价格表</span><strong id="budget-pricing">—</strong></div>
+                <div class="kv-row"><span>权重（价格 / 周期 / 方案）</span><strong id="budget-weights">—</strong></div>
+                <div class="kv-row"><span>交付周期上限</span><strong id="budget-delivery">—</strong></div>
+                <div class="kv-row"><span>最低合格投标数</span><strong id="budget-min-bids">—</strong></div>
+              </div>
+            </div>
+          </section>
+
+          <section class="panel" aria-labelledby="result-heading">
+            <div class="panel-head">
+              <div>
+                <h2 id="result-heading">评审与中标</h2>
+                <p id="result-subtitle">先过 G1~G8，再加权排名。</p>
+              </div>
+              <span id="result-source" class="tag">—</span>
+            </div>
+            <div class="panel-body">
+              <div id="winner-banner" class="winner-banner" data-kind="empty">
+                <h3>尚未定标</h3>
+                <p>等待评审数据。</p>
+              </div>
+              <div class="table-wrap">
+                <table aria-label="评分明细">
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>投标</th>
+                      <th>Agent</th>
+                      <th>报价</th>
+                      <th>周期</th>
+                      <th>价格分</th>
+                      <th>周期分</th>
+                      <th>方案分</th>
+                      <th>总分</th>
+                    </tr>
+                  </thead>
+                  <tbody id="ranking-body"></tbody>
+                </table>
+              </div>
+              <div id="ranking-empty" class="state hidden">暂无合格投标，无法排名。</div>
+              <div id="disqualified" class="disqualified"></div>
+              <ul id="result-notes" class="notes"></ul>
+              <p id="result-updated" class="message"></p>
+            </div>
+          </section>
+        </div>
+      </main>
+
+      <footer class="footer">
+        <span>确定性评审 · 无模型调用 · 无网络请求</span>
+        <span>API：/api/bids · /api/bid-result · /api/budget</span>
+      </footer>
+    </div>
+
+    <script>
+      (() => {
+        "use strict";
+
+        const HTML_ESCAPES = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
+        const SOURCE_LABELS = {
+          state: "state 快照",
+          empty_state: "空快照（按 0 计，需人工确认）",
+          assumed_zero: "缺少快照（按 0 计，需人工确认）",
+        };
+        const state = { budget: null, bidsPayload: null, result: null, errors: [], loading: false };
+        const $ = (id) => document.getElementById(id);
+        const escapeHtml = (value) => String(value ?? "").replace(/[&<>"']/g, (char) => HTML_ESCAPES[char]);
+        const formatCny = (value) => {
+          const number = Number(value);
+          return Number.isFinite(number) ? `¥${number.toFixed(2)}` : "—";
+        };
+        const formatScore = (value) => {
+          const number = Number(value);
+          return Number.isFinite(number) ? number.toFixed(3) : "—";
+        };
+        const formatPercent = (value) => {
+          const number = Number(value);
+          return Number.isFinite(number) ? `${(number * 100).toFixed(0)}%` : "—";
+        };
+        const formatDate = (value) => {
+          if (!value) return "—";
+          const date = new Date(value);
+          return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString("zh-CN");
+        };
+
+        function setText(id, value) {
+          const element = $(id);
+          if (element) element.textContent = value;
+        }
+
+        function setMessage(element, text, kind) {
+          if (!element) return;
+          element.textContent = text;
+          if (kind) element.dataset.kind = kind;
+          else delete element.dataset.kind;
+        }
+
+        function setStatus(kind, text) {
+          const pill = $("status-pill");
+          if (!pill) return;
+          pill.dataset.kind = kind;
+          pill.textContent = text;
+        }
+
+        async function fetchJson(url) {
+          const response = await fetch(url, { headers: { accept: "application/json" }, cache: "no-store" });
+          let payload;
+          try {
+            payload = await response.json();
+          } catch {
+            throw new Error(`${url} 返回的不是 JSON`);
+          }
+          if (!response.ok) {
+            throw new Error(payload && payload.error ? payload.error : `${url} HTTP ${response.status}`);
+          }
+          return payload;
+        }
+
+        async function loadAll() {
+          if (state.loading) return;
+          state.loading = true;
+          const refreshButton = $("refresh-button");
+          if (refreshButton) refreshButton.disabled = true;
+          setStatus("loading", "正在读取");
+          setText("bids-state", "加载投标中…");
+
+          const [budgetResult, bidsResult, resultResult] = await Promise.allSettled([
+            fetchJson("/api/budget"),
+            fetchJson("/api/bids"),
+            fetchJson("/api/bid-result"),
+          ]);
+
+          state.errors = [];
+          state.budget = null;
+          state.bidsPayload = null;
+          state.result = null;
+
+          if (budgetResult.status === "fulfilled") state.budget = budgetResult.value;
+          else state.errors.push(`预算：${budgetResult.reason.message}`);
+
+          if (bidsResult.status === "fulfilled") state.bidsPayload = bidsResult.value;
+          else state.errors.push(`投标：${bidsResult.reason.message}`);
+
+          if (resultResult.status === "fulfilled") state.result = resultResult.value;
+          else state.errors.push(`评审：${resultResult.reason.message}`);
+
+          render();
+          state.loading = false;
+          if (refreshButton) refreshButton.disabled = false;
+          setStatus(
+            state.errors.length ? "error" : "ready",
+            state.errors.length ? "部分数据不可用" : "数据已就绪"
+          );
+        }
+
+        function render() {
+          renderBudget();
+          renderBids();
+          renderResult();
+        }
+
+        function renderBudget() {
+          const budget = state.budget;
+          if (!budget) {
+            ["budget-task-max", "budget-daily-max", "budget-spent", "budget-remaining"].forEach((id) =>
+              setText(id, "—")
+            );
+            setText("budget-source", "不可用");
+            setText("budget-provider", "—");
+            setText("budget-pricing", "—");
+            setText("budget-weights", "—");
+            setText("budget-delivery", "—");
+            setText("budget-min-bids", "—");
+            return;
+          }
+
+          const weights = budget.weights || {};
+          setText("budget-task-max", formatCny(budget.task_max_cny));
+          setText("budget-daily-max", formatCny(budget.daily_max_cny));
+          setText("budget-spent", formatCny(budget.daily_spent_cny));
+          setText("budget-remaining", formatCny(budget.daily_remaining_cny));
+          setText("budget-source", SOURCE_LABELS[budget.budget_source] || budget.budget_source || "—");
+          setText(
+            "budget-provider",
+            `${budget.provider || "—"} / ${Array.isArray(budget.models) ? budget.models.join("、") : "—"}`
+          );
+          setText(
+            "budget-pricing",
+            `${budget.pricing_version || "—"}${budget.pricing_verified ? "（已核对）" : "（未核对，仅供估算）"}`
+          );
+          setText(
+            "budget-weights",
+            `${formatPercent(weights.price)} / ${formatPercent(weights.delivery)} / ${formatPercent(weights.quality)}`
+          );
+          setText("budget-delivery", `${budget.max_delivery_days ?? "—"} 天`);
+          setText("budget-min-bids", `${budget.min_bids ?? "—"} 家`);
+
+          const remaining = $("budget-remaining");
+          if (remaining) {
+            remaining.classList.remove("good", "warn", "bad");
+            const value = Number(budget.daily_remaining_cny);
+            const max = Number(budget.daily_max_cny);
+            remaining.classList.add(value <= 0 ? "bad" : value < max ? "warn" : "good");
+          }
+
+          const source = $("budget-source");
+          if (source) source.title = budget.state_file || "";
+        }
+
+        function renderBids() {
+          const payload = state.bidsPayload;
+          const ranking = state.result && Array.isArray(state.result.ranking) ? state.result.ranking : [];
+          const disqualified = state.result && Array.isArray(state.result.disqualified) ? state.result.disqualified : [];
+          const rankingByBid = new Map(ranking.map((entry) => [entry.bid_id, entry]));
+          const failsByBid = new Map(
+            disqualified
+              .filter((entry) => entry && entry.bid_id)
+              .map((entry) => [entry.bid_id, Array.isArray(entry.fails) ? entry.fails : []])
+          );
+
+          let bids = payload && Array.isArray(payload.bids) ? payload.bids : [];
+          if (bids.length === 0 && ranking.length) {
+            bids = ranking.map((entry) => ({
+              bid_id: entry.bid_id,
+              agent_id: entry.agent_id,
+              provider: entry.provider,
+              model: entry.model,
+              quote_cny: entry.quote_cny,
+              delivery_days: entry.delivery_days,
+              plan: {},
+              touch: [],
+            }));
+          }
+
+          setText("bids-count", `${bids.length} 条 · 合格 ${ranking.length}`);
+          if (payload && payload.parse_errors && payload.parse_errors.length) {
+            setText("bids-subtitle", `有 ${payload.parse_errors.length} 个投标文件无法解析，已计入废标。`);
+          }
+
+          const list = $("bids-list");
+          const stateElement = $("bids-state");
+          if (!list || !stateElement) return;
+
+          if (bids.length === 0) {
+            stateElement.classList.remove("hidden");
+            stateElement.textContent = state.errors.length
+              ? "投标数据不可用，请确认已通过 node server.js 打开页面。"
+              : "投标池为空，等待 Agent 提交。";
+            list.innerHTML = "";
+            return;
+          }
+
+          stateElement.classList.add("hidden");
+          list.innerHTML = bids
+            .map((bid) => {
+              const ranked = rankingByBid.get(bid.bid_id);
+              const fails = failsByBid.get(bid.bid_id) || [];
+              const qualified = ranked ? true : fails.length ? false : null;
+              const statusClass = ranked ? "ok" : fails.length ? "bad" : "warn";
+              const statusText = ranked
+                ? `合格 · 第 ${ranked.rank} 名`
+                : fails.length
+                  ? "废标"
+                  : "待评审";
+              const plan = bid.plan || {};
+              const milestones = Array.isArray(plan.milestones) ? plan.milestones : [];
+              const risks = Array.isArray(plan.risks) ? plan.risks : [];
+              const tests = Array.isArray(plan.test_plan) ? plan.test_plan : [];
+              const scoreLine = ranked
+                ? `<div class="bid-numbers">
+                     <span class="tag">价格分 ${formatScore(ranked.scores && ranked.scores.price)}</span>
+                     <span class="tag">周期分 ${formatScore(ranked.scores && ranked.scores.delivery)}</span>
+                     <span class="tag">方案分 ${formatScore(ranked.scores && ranked.scores.quality)}</span>
+                     <span class="tag">总分 ${formatScore(ranked.total)}</span>
+                   </div>`
+                : "";
+              const failLine = fails.length
+                ? `<ul>${fails
+                    .map((fail) => `<li><strong>${escapeHtml(fail.gate)}</strong> ${escapeHtml(fail.reason)}</li>`)
+                    .join("")}</ul>`
+                : "";
+
+              return `<article class="bid-card" data-qualified="${qualified === false ? "false" : "true"}">
+                <div class="bid-top">
+                  <div>
+                    <h3 class="bid-title">${escapeHtml(bid.bid_id || "(未命名投标)")}</h3>
+                    <p class="bid-sub">${escapeHtml(bid.agent_id || "未知 Agent")} · ${escapeHtml(bid.provider || "—")} / ${escapeHtml(bid.model || "—")}</p>
+                  </div>
+                  <span class="bid-status ${statusClass}">${statusText}</span>
+                </div>
+                <div class="bid-numbers">
+                  <span class="tag">报价 ${formatCny(bid.quote_cny)}</span>
+                  <span class="tag">交付 ${escapeHtml(bid.delivery_days ?? "—")} 天</span>
+                  ${ranked ? `<span class="tag">复算成本 ${formatCny(ranked.est_cost_cny)}</span>` : ""}
+                  <span class="tag">${milestones.length} 个里程碑</span>
+                  <span class="tag">${risks.length} 条风险</span>
+                  <span class="tag">${tests.length} 条测试</span>
+                </div>
+                ${scoreLine}
+                ${failLine}
+              </article>`;
+            })
+            .join("");
+        }
+        function renderResult() {
+          const result = state.result;
+          const banner = $("winner-banner");
+          const tbody = $("ranking-body");
+          const empty = $("ranking-empty");
+          if (!result || !banner || !tbody || !empty) return;
+
+          setText(
+            "result-source",
+            result.source === "report" ? "report 落盘结果" : result.source === "computed" ? "实时计算" : "—"
+          );
+
+          const ranking = Array.isArray(result.ranking) ? result.ranking : [];
+          const disqualified = Array.isArray(result.disqualified) ? result.disqualified : [];
+          const counts = result.counts || {};
+
+          tbody.innerHTML = ranking
+            .map(
+              (entry) => `<tr>
+                <td><span class="rank-badge">${escapeHtml(entry.rank)}</span></td>
+                <td>${escapeHtml(entry.bid_id)}</td>
+                <td>${escapeHtml(entry.agent_id)}</td>
+                <td class="num">${formatCny(entry.quote_cny)}</td>
+                <td class="num">${escapeHtml(entry.delivery_days)} 天</td>
+                <td class="num">${formatScore(entry.scores && entry.scores.price)}</td>
+                <td class="num">${formatScore(entry.scores && entry.scores.delivery)}</td>
+                <td class="num">${formatScore(entry.scores && entry.scores.quality)}</td>
+                <td class="num"><strong>${formatScore(entry.total)}</strong></td>
+              </tr>`
+            )
+            .join("");
+          empty.classList.toggle("hidden", ranking.length > 0);
+
+          if (result.winner) {
+            banner.dataset.kind = "ok";
+            banner.innerHTML = `<h3>中标：${escapeHtml(result.winner.bid_id)} / ${escapeHtml(result.winner.agent_id)}</h3>
+              <p>${escapeHtml(result.winner.reason || "总分排名第 1")}</p>
+              <div class="winner-stats">
+                <span class="tag">报价 ${formatCny(result.winner.quote_cny)}</span>
+                <span class="tag">交付 ${escapeHtml(result.winner.delivery_days)} 天</span>
+                <span class="tag">总分 ${formatScore(result.winner.total)}</span>
+              </div>`;
+          } else if (result.insufficient_bids) {
+            banner.dataset.kind = "warn";
+            banner.innerHTML = `<h3>合格投标不足 ${escapeHtml(counts.min_bids ?? "—")} 家</h3>
+              <p>按标书规则不产生中标，需要更多 Agent 投标或人工介入。</p>`;
+          } else {
+            banner.dataset.kind = "empty";
+            banner.innerHTML = `<h3>未产生中标</h3><p>当前没有可中标的合格投标。</p>`;
+          }
+
+          const disqualifiedContainer = $("disqualified");
+          if (disqualifiedContainer) {
+            disqualifiedContainer.innerHTML = disqualified.length
+              ? disqualified
+                  .map((entry) => {
+                    const fails = Array.isArray(entry.fails) ? entry.fails : [];
+                    return `<div class="disqualified-item">
+                      <strong>${escapeHtml(entry.bid_id || entry.file || "(无法解析)")}</strong>
+                      ${entry.agent_id ? ` · ${escapeHtml(entry.agent_id)}` : ""}
+                      <ul>${fails
+                        .map((fail) => `<li>${escapeHtml(fail.gate)} ${escapeHtml(fail.reason)}</li>`)
+                        .join("")}</ul>
+                    </div>`;
+                  })
+                  .join("")
+              : `<div class="state">本次没有废标投标。</div>`;
+          }
+
+          const notes = $("result-notes");
+          if (notes) {
+            notes.innerHTML = (Array.isArray(result.notes) ? result.notes : [])
+              .map((note) => `<li>${escapeHtml(note)}</li>`)
+              .join("");
+          }
+
+          setMessage(
+            $("result-updated"),
+            `投标 ${counts.bids ?? "—"} · 合格 ${counts.qualified ?? "—"} · 废标 ${counts.disqualified ?? "—"} · 生成于 ${formatDate(result.generated_at)}`
+          );
+        }
+
+        const DRAFT_KEY = "bid-hall:requirement-draft";
+
+        function readDraft() {
+          try {
+            const raw = window.localStorage.getItem(DRAFT_KEY);
+            return raw ? JSON.parse(raw) : null;
+          } catch {
+            return null;
+          }
+        }
+
+        function writeDraft(draft) {
+          try {
+            window.localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+            return true;
+          } catch {
+            return false;
+          }
+        }
+
+        function removeDraft() {
+          try {
+            window.localStorage.removeItem(DRAFT_KEY);
+          } catch {
+            // 浏览器禁用 localStorage 时，草稿只存在于当前页面。
+          }
+        }
+
+        function renderDraft(draft) {
+          const card = $("requirement-card");
+          if (!card) return;
+          if (!draft) {
+            card.classList.add("hidden");
+            return;
+          }
+
+          card.classList.remove("hidden");
+          setText("req-card-title", draft.title);
+          setText("req-card-description", draft.description);
+          const meta = $("req-card-meta");
+          if (meta) {
+            meta.innerHTML = [
+              `预算 ${formatCny(draft.budgetCny)}`,
+              `期望 ${escapeHtml(draft.deliveryDays)} 天`,
+              `登记于 ${formatDate(draft.createdAt)}`,
+              "本机草稿",
+            ]
+              .map((item) => `<span class="tag">${item}</span>`)
+              .join("");
+          }
+        }
+
+        function validateRequirement(draft) {
+          if (!draft.title) return "请填写需求标题。";
+          if (draft.title.length < 4) return "需求标题至少 4 个字。";
+          if (!draft.description) return "请填写需求描述。";
+          if (draft.description.length < 10) return "需求描述至少 10 个字。";
+          if (!Number.isFinite(draft.budgetCny) || draft.budgetCny <= 0) return "预算必须是正数。";
+          if (!Number.isInteger(draft.deliveryDays) || draft.deliveryDays <= 0) {
+            return "期望交付必须是正整数天。";
+          }
+
+          const taskMax = Number(state.budget && state.budget.task_max_cny);
+          if (Number.isFinite(taskMax) && draft.budgetCny > taskMax) {
+            return `预算不能超过当前单任务上限 ${formatCny(taskMax)}。`;
+          }
+          return "";
+        }
+
+        function handleRequirementSubmit(event) {
+          event.preventDefault();
+          const title = ($("req-title")?.value || "").trim();
+          const description = ($("req-description")?.value || "").trim();
+          const budgetValue = $("req-budget")?.value || "";
+          const deliveryValue = $("req-delivery")?.value || "";
+          const draft = {
+            title,
+            description,
+            budgetCny: Number(budgetValue),
+            deliveryDays: Number(deliveryValue),
+            createdAt: new Date().toISOString(),
+          };
+          const error = validateRequirement(draft);
+          const message = $("req-message");
+
+          if (error) {
+            setMessage(message, error, "error");
+            return;
+          }
+
+          const stored = writeDraft(draft);
+          renderDraft(draft);
+          setMessage(
+            message,
+            stored
+              ? "需求草稿已登记到本机浏览器；刷新页面仍会保留。"
+              : "需求草稿已登记到当前页面；浏览器禁用了本地存储，刷新后会丢失。",
+            "ok"
+          );
+        }
+
+        function restoreRequirementDraft() {
+          const draft = readDraft();
+          if (!draft) return;
+          if ($("req-title")) $("req-title").value = draft.title || "";
+          if ($("req-description")) $("req-description").value = draft.description || "";
+          if ($("req-budget")) $("req-budget").value = draft.budgetCny ?? "";
+          if ($("req-delivery")) $("req-delivery").value = draft.deliveryDays ?? "";
+          renderDraft(draft);
+        }
+
+        function clearRequirementDraft() {
+          removeDraft();
+          const form = $("requirement-form");
+          if (form) form.reset();
+          renderDraft(null);
+          setMessage($("req-message"), "草稿已清除。", "ok");
+        }
+
+        function bindEvents() {
+          const form = $("requirement-form");
+          if (form) form.addEventListener("submit", handleRequirementSubmit);
+          if ($("req-clear")) $("req-clear").addEventListener("click", clearRequirementDraft);
+          if ($("refresh-button")) $("refresh-button").addEventListener("click", loadAll);
+        }
+
+        bindEvents();
+        restoreRequirementDraft();
+        loadAll();
+      })();
+    </script>
+  </body>
+</html>

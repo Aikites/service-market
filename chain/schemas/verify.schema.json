@@ -188,7 +188,7 @@
       "required": ["os", "node", "pnpm", "local"],
       "properties": {
         "os": { "type": "string", "minLength": 1, "maxLength": 40 },
-        "node": { "type": "string", "pattern": "^22\\.[0-9]+\\.[0-9]+$" },
+        "node": { "type": "string", "pattern": "^2[2-4]\\.[0-9]+\\.[0-9]+$" },
         "pnpm": { "type": "string", "minLength": 1, "maxLength": 20 },
         "local": { "type": "boolean" },
         "runner": { "type": ["string", "null"], "maxLength": 80 },

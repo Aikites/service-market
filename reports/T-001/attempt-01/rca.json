@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "rca_id": "T-001-A01-rca-001",
+  "task_id": "T-001",
+  "attempt_id": "T-001-A01",
+  "base_commit": "1d5b0ecf63af112a335f6d9d48bf2ab0f356bd4e",
+  "commit": "1d5b0ecf63af112a335f6d9d48bf2ab0f356bd4e",
+  "diff_hash": "sha256:8f9e33647ce0056181ecfd5f4d9a1bf9c2d8fca1e5e7991aa3f67104fc0441e2",
+  "failure_class": "TEST_ASSERT",
+  "root_cause": "assertWeights 先校验三项权重之和，再逐项校验 0~1 区间。测试用 {price:1.2, delivery:0, quality:0.3}（和=1.5）期望匹配 /0~1/，实际先命中求和错误，导致既有测试失败。",
+  "evidence": [
+    "tests/bid/review-bids.test.mjs:24 期望 /0~1/",
+    "src/bid/config.mjs:68 先求和后区间校验",
+    "修复前 Vitest: 1 failed | 18 passed",
+    "修复后 Vitest: 19 passed"
+  ],
+  "reproduction": {
+    "command": "node node_modules/vitest/vitest.mjs run",
+    "pre_fix_exit_code": 1,
+    "pre_fix_confirmed_at": "2026-11-19T06:27:00.000Z",
+    "post_fix_exit_code": 0
+  },
+  "minimal_fix": ["src/bid/config.mjs"],
+  "confidence": 0.98,
+  "model": {
+    "provider": "deepseek",
+    "model": "deepseek-reasoner",
+    "model_version": null,
+    "prompt_hash": "sha256:8896f1b266a6616436a4eccfcb0793cd2f64b07a73d5a242205eb679615aff5d"
+  },
+  "created_at": "2026-11-19T06:35:00.000Z"
+}

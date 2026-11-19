@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "review_id": "T-001-A02-review-001",
+  "task_id": "T-001",
+  "attempt_id": "T-001-A02",
+  "base_commit": "c85cc8450674aef7f7cabc77a64882b9a14dbda0",
+  "commit": "c85cc8450674aef7f7cabc77a64882b9a14dbda0",
+  "diff_hash": "sha256:df0592229ccd51d7c41af42974a80a8260fe784d1df3f9d14926132f38328a4d",
+  "truncated": false,
+  "reviewer": {
+    "provider": "deepseek",
+    "model": "deepseek-reasoner",
+    "model_version": null,
+    "prompt_hash": "sha256:8896f1b266a6616436a4eccfcb0793cd2f64b07a73d5a242205eb679615aff5d"
+  },
+  "verdict": "approve",
+  "findings": [
+    {
+      "id": "F1",
+      "file": "server.js",
+      "line": 278,
+      "hunk": "@@ -278,1 +278,1 @@",
+      "severity": "medium",
+      "category": "security",
+      "invariant_id": null,
+      "issue": "handle() 的 500 响应直接返回 error.message，可能暴露内部路径或异常细节。",
+      "evidence": "server.js:278 `return sendJson(res, 500, { ok: false, error: error.message }, method);`",
+      "suggestion": "对外返回固定文案，内部只写日志；T-002 认证接口也应遵守。",
+      "must_fix": false
+    },
+    {
+      "id": "F2",
+      "file": "admin.html",
+      "line": 1,
+      "hunk": "@@ -1,1 +1,1 @@",
+      "severity": "low",
+      "category": "correctness",
+      "invariant_id": null,
+      "issue": "admin.html 仍是 0 字节，/admin.html 实际 404；这是 T-002 的交付范围。",
+      "evidence": "admin.html 0 字节；server.js:209 拒绝 size=0 文件。",
+      "suggestion": "T-002 填充 admin.html 并加 ADMIN 角色保护。",
+      "must_fix": false
+    },
+    {
+      "id": "F3",
+      "file": "chain/pricing.json",
+      "line": 1,
+      "hunk": "@@ -1,1 +1,1 @@",
+      "severity": "low",
+      "category": "other",
+      "invariant_id": null,
+      "issue": "价格表 verified=false，成本估算仍是预估值。",
+      "evidence": "verify 输出 pricing.unverified 告警。",
+      "suggestion": "人工核对官方价格页后运行 --mark-pricing-verified --by <人>。",
+      "must_fix": false
+    }
+  ],
+  "test_gaps": [
+    {
+      "behavior": "T-002 的注册/登录/服务端会话/ADMIN 角色中间件尚未实现，/admin.html 没有保护",
+      "suggested_test": "tests/auth/register.test.mjs 等四个 required tests",
+      "severity": "medium"
+    },
+    {
+      "behavior": "i18n 只有 zh-CN，键集合校验目前是单语言通过",
+      "suggested_test": "新增第二 locale 后补 key parity 测试",
+      "severity": "low"
+    },
+    {
+      "behavior": "价格表未人工核对，成本估算不能作为真实预算依据",
+      "suggested_test": "node scripts/verify.mjs --mark-pricing-verified --by <人>",
+      "severity": "low"
+    }
+  ],
+  "invariant_coverage": [
+    { "id": "INV-001", "covered": true, "test_ids": ["bid-ranking-by-weight"] },
+    { "id": "INV-002", "covered": true, "test_ids": ["budget-gate-rejects-over-cap"] },
+    { "id": "INV-003", "covered": true, "test_ids": ["bid-ranking-by-weight"] }
+  ],
+  "confidence": 0.95,
+  "summary": "T-001 A02 的 10 个 verify 阶段全部实跑通过，19 个 Vitest 测试通过，3 条不变量覆盖。T-001 卡已改为 confirmed；代码评审无阻断项。剩余是 T-002 认证、价格表人工核对和 admin.html 空占位。",
+  "created_at": "2026-11-19T06:46:00.000Z"
+}

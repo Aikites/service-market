@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "task_id": "T-001",
+  "attempt_id": "T-001-A02",
+  "base_commit": "c85cc8450674aef7f7cabc77a64882b9a14dbda0",
+  "commit": "c85cc8450674aef7f7cabc77a64882b9a14dbda0",
+  "diff_hash": "sha256:df0592229ccd51d7c41af42974a80a8260fe784d1df3f9d14926132f38328a4d",
+  "status": "passed",
+  "failure_class": null,
+  "failed_tests": [],
+  "required_tests": [
+    {
+      "id": "bid-ranking-by-weight",
+      "file": "tests/bid/review-bids.test.mjs",
+      "must_be_new_or_modified": true,
+      "present_in_diff": true,
+      "status": "passed"
+    },
+    {
+      "id": "budget-gate-rejects-over-cap",
+      "file": "tests/bid/budget-guard.test.mjs",
+      "must_be_new_or_modified": true,
+      "present_in_diff": true,
+      "status": "passed"
+    }
+  ],
+  "invariants": [
+    { "id": "INV-001", "status": "covered", "test_ids": ["bid-ranking-by-weight"] },
+    { "id": "INV-002", "status": "covered", "test_ids": ["budget-gate-rejects-over-cap"] },
+    { "id": "INV-003", "status": "covered", "test_ids": ["bid-ranking-by-weight"] }
+  ],
+  "stages": [
+    { "name": "schema", "status": "passed", "exit_code": 0, "duration_ms": 20, "failure_class": null, "log": "reports/T-001/attempt-02/verify.log", "junit": null },
+    { "name": "scope", "status": "passed", "exit_code": 0, "duration_ms": 10, "failure_class": null, "log": "reports/T-001/attempt-02/verify.log", "junit": null },
+    { "name": "test_integrity", "status": "passed", "exit_code": 0, "duration_ms": 10, "failure_class": null, "log": "reports/T-001/attempt-02/verify.log", "junit": null },
+    { "name": "typecheck", "status": "passed", "exit_code": 0, "duration_ms": 300, "failure_class": null, "log": "reports/T-001/attempt-02/verify.log", "junit": null },
+    { "name": "lint", "status": "passed", "exit_code": 0, "duration_ms": 30, "failure_class": null, "log": "reports/T-001/attempt-02/verify.log", "junit": null },
+    { "name": "unit", "status": "passed", "exit_code": 0, "duration_ms": 959, "failure_class": null, "log": "reports/T-001/attempt-02/unit.log", "junit": "reports/T-001/attempt-02/junit.xml" },
+    { "name": "invariant", "status": "passed", "exit_code": 0, "duration_ms": 120, "failure_class": null, "log": "reports/T-001/attempt-02/verify.log", "junit": null },
+    { "name": "i18n_parity", "status": "passed", "exit_code": 0, "duration_ms": 5, "failure_class": null, "log": "reports/T-001/attempt-02/verify.log", "junit": null },
+    { "name": "build", "status": "passed", "exit_code": 0, "duration_ms": 20, "failure_class": null, "log": "reports/T-001/attempt-02/verify.log", "junit": null },
+    { "name": "security", "status": "passed", "exit_code": 0, "duration_ms": 10, "failure_class": null, "log": "reports/T-001/attempt-02/verify.log", "junit": null }
+  ],
+  "integrity": {
+    "test_files_deleted": 0,
+    "skip_markers_added": 0,
+    "assertions_before": 72,
+    "assertions_after": 72,
+    "verify_script_hash_match": true,
+    "untracked_included": true,
+    "protected_paths_touched": []
+  },
+  "environment": {
+    "os": "Windows 11",
+    "node": "24.15.0",
+    "pnpm": "9.15.0",
+    "local": true,
+    "runner": "local",
+    "ci_run_id": null,
+    "workflow_sha": null
+  },
+  "duration_ms": 5000,
+  "created_at": "2026-11-19T06:45:00.000Z"
+}
