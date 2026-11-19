@@ -20,6 +20,9 @@ scope/integrity-report.json
 .env.local
 !.env.example
 
+# ---- 认证运行期数据（用户 / 会话，禁止入库）----
+data/
+
 # ---- Prisma ----
 prisma/migrations/*.db
 prisma/dev.db

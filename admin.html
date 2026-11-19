@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <title>管理台 · 竞标大厅</title>
+    <style>
+      :root {
+        --bg: #080d1a; --panel: #111a2e; --soft: #0b1324; --line: #22304d;
+        --text: #e8eefb; --muted: #93a4c3; --accent: #38bdf8;
+        --good: #34d399; --bad: #fb7185; --radius: 16px;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0; min-height: 100vh; color: var(--text);
+        background:
+          radial-gradient(900px 520px at 12% -10%, rgba(56, 189, 248, 0.16), transparent 60%),
+          radial-gradient(700px 420px at 100% 0%, rgba(52, 211, 153, 0.1), transparent 55%),
+          var(--bg);
+        font: 15px/1.65 "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+      }
+      .shell { max-width: 920px; margin: 0 auto; padding: 28px 20px 56px; }
+      header { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; padding-bottom: 20px; }
+      .eyebrow { margin: 0 0 6px; color: var(--accent); font-size: 12px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; }
+      h1 { margin: 0; font-size: clamp(24px, 3.4vw, 34px); line-height: 1.15; }
+      .lede { margin: 6px 0 0; color: var(--muted); font-size: 13px; }
+      a { color: var(--accent); text-decoration: none; }
+      .panel { margin-bottom: 16px; padding: 20px; border: 1px solid var(--line); border-radius: var(--radius); background: linear-gradient(180deg, rgba(17, 26, 46, 0.96), rgba(11, 18, 33, 0.96)); box-shadow: 0 18px 60px rgba(0, 0, 0, 0.35); }
+      .panel h2 { margin: 0 0 12px; font-size: 16px; }
+      .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin: 0; }
+      .item { padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--soft); }
+      .item dt { margin: 0 0 4px; color: var(--muted); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; }
+      .item dd { margin: 0; font-size: 15px; font-weight: 600; overflow-wrap: anywhere; }
+      .tag { display: inline-block; padding: 2px 9px; border-radius: 999px; background: rgba(56, 189, 248, 0.12); color: var(--accent); font-size: 12px; font-weight: 700; }
+      .tag[data-role="ADMIN"] { background: rgba(52, 211, 153, 0.12); color: var(--good); }
+      .tag[data-role="USER"] { background: rgba(147, 164, 195, 0.14); color: var(--muted); }
+      .message { min-height: 20px; margin: 10px 0 0; color: var(--muted); font-size: 12px; }
+      .message[data-kind="error"] { color: var(--bad); }
+      button {
+        padding: 9px 14px; border: 1px solid var(--line); border-radius: 10px; cursor: pointer;
+        background: var(--soft); color: var(--text); font: inherit;
+      }
+      button:hover { border-color: rgba(56, 189, 248, 0.5); }
+      .actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 12px; }
+      .muted { color: var(--muted); font-size: 12px; }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <header>
+        <div>
+          <p class="eyebrow">T-002 · ADMIN</p>
+          <h1>运营管理台</h1>
+          <p class="lede">只读视图：当前账号、会话到期时间与竞标大厅状态。写操作留给后续任务卡。</p>
+        </div>
+        <a href="/">← 竞标大厅</a>
+      </header>
+
+      <section class="panel" id="account-panel">
+        <h2>当前账号</h2>
+        <dl class="grid">
+          <div class="item"><dt>称呼</dt><dd id="user-name">读取中…</dd></div>
+          <div class="item"><dt>邮箱</dt><dd id="user-email">—</dd></div>
+          <div class="item"><dt>角色</dt><dd><span class="tag" id="user-role">—</span></dd></div>
+          <div class="item"><dt>会话到期</dt><dd id="session-expires">—</dd></div>
+        </dl>
+        <p class="message" id="account-message" role="status" aria-live="polite"></p>
+      </section>
+
+      <section class="panel">
+        <h2>竞标大厅概览</h2>
+        <dl class="grid">
+          <div class="item"><dt>投标数</dt><dd id="stat-bids">—</dd></div>
+          <div class="item"><dt>合格 / 废标</dt><dd id="stat-qualified">—</dd></div>
+          <div class="item"><dt>预算上限</dt><dd id="stat-budget">—</dd></div>
+          <div class="item"><dt>当前中标</dt><dd id="stat-winner">—</dd></div>
+        </dl>
+        <p class="message" id="stats-message" role="status" aria-live="polite"></p>
+        <div class="actions">
+          <button id="refresh" type="button">刷新评审</button>
+          <span class="muted">数据来自 /api/bids、/api/budget、/api/bid-result（只读）</span>
+        </div>
+      </section>
+    </div>
+
+    <script>
+      (function () {
+        const $ = function (id) { return document.getElementById(id); };
+
+        function setMessage(el, text, kind) {
+          el.textContent = text;
+          el.dataset.kind = kind || "";
+        }
+
+        function formatCny(value) {
+          return Number.isFinite(Number(value)) ? "¥" + Number(value).toFixed(2) : "—";
+        }
+
+        function formatDate(value) {
+          const time = Date.parse(value);
+          if (!Number.isFinite(time)) return "—";
+          return new Date(time).toLocaleString("zh-CN", { hour12: false });
+        }
+
+        function formatTime(date) {
+          return date.toLocaleTimeString("zh-CN", { hour12: false });
+        }
+
+        async function loadAccount() {
+          const response = await fetch("/api/auth/me", { headers: { accept: "application/json" } });
+          if (response.status === 401) {
+            window.location.replace("/login?next=/admin.html");
+            return null;
+          }
+          const payload = await response.json().catch(function () { return {}; });
+          if (!response.ok) {
+            setMessage($("account-message"), payload.error || "读取账号失败", "error");
+            return null;
+          }
+          const user = payload.user || {};
+          $("user-name").textContent = user.name || "—";
+          $("user-email").textContent = user.email || "—";
+          $("user-role").textContent = user.role || "—";
+          $("user-role").dataset.role = user.role || "";
+          $("session-expires").textContent = formatDate(payload.session && payload.session.expiresAt);
+          if (user.role !== "ADMIN") {
+            setMessage($("account-message"), "当前账号不是管理员，服务端会拒绝管理页。", "error");
+          }
+          return user;
+        }
+
+        async function loadStats() {
+          setMessage($("stats-message"), "读取中…", "");
+          try {
+            const responses = await Promise.all([
+              fetch("/api/bids"),
+              fetch("/api/budget"),
+              fetch("/api/bid-result"),
+            ]);
+            const bids = await responses[0].json().catch(function () { return {}; });
+            const budget = await responses[1].json().catch(function () { return {}; });
+            const result = await responses[2].json().catch(function () { return {}; });
+
+            $("stat-bids").textContent = Number.isFinite(bids.count) ? String(bids.count) : "—";
+            const counts = result.counts || {};
+            const qualified = Number.isFinite(counts.qualified) ? counts.qualified : "—";
+            const disqualified = Number.isFinite(counts.disqualified) ? counts.disqualified : "—";
+            $("stat-qualified").textContent = qualified + " / " + disqualified;
+            $("stat-budget").textContent =
+              formatCny(budget.task_max_cny) + " · 剩余 " + formatCny(budget.daily_remaining_cny);
+            $("stat-winner").textContent = result.winner
+              ? result.winner.agent_id + " · " + formatCny(result.winner.quote_cny)
+              : "暂无中标";
+            setMessage($("stats-message"), "已刷新：" + formatTime(new Date()), "");
+          } catch (error) {
+            setMessage($("stats-message"), "读取竞标数据失败，请稍后重试。", "error");
+          }
+        }
+
+        async function bootstrap() {
+          const user = await loadAccount();
+          if (!user || user.role !== "ADMIN") return;
+          await loadStats();
+        }
+
+        $("refresh").addEventListener("click", loadStats);
+        bootstrap().catch(function () {
+          setMessage($("account-message"), "网络异常，请刷新页面重试。", "error");
+        });
+      })();
+    </script>
+  </body>
+</html>

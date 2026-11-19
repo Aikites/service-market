@@ -6,6 +6,9 @@ import { createServer } from 'node:http';
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { dirname, extname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { ensureAdminUser } from './src/auth/admin.mjs';
+import { getSession } from './src/auth/middleware.mjs';
+import { handleAuthRoute } from './src/auth/routes.mjs';
 import {
   buildBudgetContext,
   buildPricingIndex,
@@ -15,7 +18,9 @@ import {
 
 const ROOT = dirname(fileURLToPath(import.meta.url));
 const HOST = process.env.HOST || '127.0.0.1';
-const PORT = Number(process.env.PORT) || 3000;
+const parsedPort = Number(process.env.PORT);
+const PORT =
+  Number.isInteger(parsedPort) && parsedPort >= 0 && parsedPort <= 65535 ? parsedPort : 3000;
 const TASK_ID = 'T-001';
 
 function absolute(relativePath) {
@@ -219,17 +224,57 @@ function sendFile(res, relativePath, method) {
   res.end(method === 'HEAD' ? undefined : body);
 }
 
+// 认证相关的 HTML 响应（302 / 403），与 JSON 接口分开，避免把 HTML 当 JSON 返回。
+function sendHtml(res, status, html, extraHeaders = {}) {
+  res.writeHead(status, {
+    'content-type': 'text/html; charset=utf-8',
+    'cache-control': 'no-store',
+    'x-content-type-options': 'nosniff',
+    ...extraHeaders,
+  });
+  res.end(html);
+}
+
+const FORBIDDEN_PAGE = `<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <title>403 · 需要管理员权限</title>
+    <style>
+      body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #080d1a; color: #e8eefb; font: 15px/1.7 "Segoe UI", "Microsoft YaHei", system-ui, sans-serif; }
+      .card { max-width: 420px; padding: 28px 26px; border: 1px solid #22304d; border-radius: 16px; background: #111a2e; text-align: center; }
+      h1 { margin: 0 0 10px; font-size: 22px; }
+      p { margin: 0 0 18px; color: #93a4c3; }
+      a { color: #38bdf8; text-decoration: none; }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1>403 · 需要管理员权限</h1>
+      <p>当前账号不是管理员，无法打开运营页面。</p>
+      <a href="/">返回竞标大厅</a>
+    </div>
+  </body>
+</html>`;
+
 async function handle(req, res) {
   const method = req.method || 'GET';
-  if (method !== 'GET' && method !== 'HEAD') {
-    return sendJson(res, 405, { ok: false, error: '只读接口，仅支持 GET' }, method);
-  }
 
   let pathname;
   try {
     pathname = decodeURIComponent(new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`).pathname);
   } catch {
     return sendJson(res, 400, { ok: false, error: '请求路径非法' }, method);
+  }
+
+  // 认证接口是唯一的写入口；其余路径仍按 T-001 的只读规则处理。
+  if (pathname.startsWith('/api/auth/')) {
+    const handled = await handleAuthRoute(req, res, pathname);
+    if (handled) return;
+  }
+
+  if (method !== 'GET' && method !== 'HEAD') {
+    return sendJson(res, 405, { ok: false, error: '只读接口，仅支持 GET' }, method);
   }
 
   try {
@@ -269,7 +314,23 @@ async function handle(req, res) {
       return sendFile(res, 'index.html', method);
     }
 
+    if (pathname === '/login' || pathname === '/login.html') {
+      return sendFile(res, 'login.html', method);
+    }
+
+    if (pathname === '/register' || pathname === '/register.html') {
+      return sendFile(res, 'register.html', method);
+    }
+
     if (pathname === '/admin.html') {
+      const session = await getSession(req);
+      if (!session) {
+        // 未登录：跳到登录页；next 由前端校验为站内路径。
+        return sendHtml(res, 302, '跳转到登录页', { location: '/login?next=/admin.html' });
+      }
+      if (session.user.role !== 'ADMIN') {
+        return sendHtml(res, 403, FORBIDDEN_PAGE);
+      }
       return sendFile(res, 'admin.html', method);
     }
 
@@ -289,6 +350,19 @@ const server = createServer((req, res) => {
   });
 });
 
-server.listen(PORT, HOST, () => {
-  console.log(`竞标大厅已启动: http://${HOST}:${PORT}`);
-});
+async function main() {
+  try {
+    const admin = await ensureAdminUser();
+    if (admin) console.log(`已引导管理员账号: ${admin.email}`);
+  } catch (error) {
+    console.warn('[auth] 管理员引导失败:', error && error.message ? error.message : 'unknown');
+  }
+
+  server.listen(PORT, HOST, () => {
+    const address = server.address();
+    const actualPort = address && typeof address === 'object' ? address.port : PORT;
+    console.log(`竞标大厅已启动: http://${HOST}:${actualPort}`);
+  });
+}
+
+main();

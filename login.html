@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <title>登录 · 竞标大厅</title>
+    <style>
+      :root {
+        --bg: #080d1a; --panel: #111a2e; --soft: #0b1324; --line: #22304d;
+        --text: #e8eefb; --muted: #93a4c3; --accent: #38bdf8;
+        --bad: #fb7185; --good: #34d399; --radius: 16px;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 32px 18px;
+        color: var(--text);
+        background:
+          radial-gradient(900px 520px at 12% -10%, rgba(56, 189, 248, 0.16), transparent 60%),
+          radial-gradient(700px 420px at 100% 0%, rgba(52, 211, 153, 0.1), transparent 55%),
+          var(--bg);
+        font: 15px/1.65 "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+      }
+      .shell { width: 100%; max-width: 420px; }
+      .back { display: inline-block; margin-bottom: 14px; color: var(--muted); font-size: 12px; text-decoration: none; }
+      .back:hover { color: var(--accent); }
+      .card { padding: 26px 24px; border: 1px solid var(--line); border-radius: var(--radius); background: linear-gradient(180deg, rgba(17, 26, 46, 0.96), rgba(11, 18, 33, 0.96)); box-shadow: 0 18px 60px rgba(0, 0, 0, 0.35); }
+      .eyebrow { margin: 0 0 6px; color: var(--accent); font-size: 12px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; }
+      h1 { margin: 0 0 6px; font-size: 26px; }
+      .lede { margin: 0 0 20px; color: var(--muted); font-size: 13px; }
+      form { display: grid; gap: 14px; }
+      label { display: grid; gap: 6px; color: var(--muted); font-size: 12px; }
+      input {
+        width: 100%; padding: 11px 12px; border: 1px solid var(--line); border-radius: 10px;
+        background: var(--soft); color: var(--text); font: inherit;
+      }
+      input:focus { outline: 2px solid rgba(56, 189, 248, 0.45); outline-offset: 1px; }
+      button {
+        margin-top: 4px; padding: 11px 16px; border: 0; border-radius: 10px; cursor: pointer;
+        color: #04121d; background: linear-gradient(135deg, #67e8f9, #38bdf8); font: inherit; font-weight: 700;
+      }
+      button:disabled { cursor: not-allowed; opacity: 0.6; }
+      .message { min-height: 20px; margin: 12px 0 0; font-size: 12px; color: var(--muted); }
+      .message[data-kind="error"] { color: var(--bad); }
+      .message[data-kind="ok"] { color: var(--good); }
+      .switch { margin: 18px 0 0; padding-top: 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; }
+      .switch a { color: var(--accent); text-decoration: none; }
+    </style>
+  </head>
+  <body>
+    <main class="shell">
+      <a class="back" href="/">← 返回竞标大厅</a>
+      <section class="card">
+        <p class="eyebrow">T-002 · 服务端会话</p>
+        <h1>登录</h1>
+        <p class="lede">邮箱 + 密码；成功后回到竞标大厅。</p>
+
+        <form id="login-form" novalidate>
+          <label>
+            邮箱
+            <input id="email" name="email" type="email" autocomplete="email" placeholder="user@example.com" required />
+          </label>
+          <label>
+            密码
+            <input id="password" name="password" type="password" autocomplete="current-password" required />
+          </label>
+          <button id="submit" type="submit">登录</button>
+        </form>
+
+        <p class="message" id="message" role="status" aria-live="polite"></p>
+        <p class="switch">还没有账号？<a href="/register">注册</a></p>
+      </section>
+    </main>
+
+    <script>
+      (function () {
+        const form = document.getElementById("login-form");
+        const message = document.getElementById("message");
+        const submit = document.getElementById("submit");
+
+        // next 只允许站内路径，防开放重定向。
+        function safeNext() {
+          const raw = new URLSearchParams(window.location.search).get("next") || "/";
+          if (!raw.startsWith("/") || raw.startsWith("//") || raw.includes("\\")) return "/";
+          if (/[\u0000-\u001f\u007f]/.test(raw)) return "/";
+          return raw;
+        }
+
+        function setMessage(text, kind) {
+          message.textContent = text;
+          message.dataset.kind = kind || "";
+        }
+
+        form.addEventListener("submit", async function (event) {
+          event.preventDefault();
+          setMessage("", "");
+          submit.disabled = true;
+          try {
+            const response = await fetch("/api/auth/login", {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({
+                email: document.getElementById("email").value.trim(),
+                password: document.getElementById("password").value,
+              }),
+            });
+            const payload = await response.json().catch(function () {
+              return {};
+            });
+            if (!response.ok) {
+              const retryAfter = response.headers.get("retry-after");
+              const hint = response.status === 429 && retryAfter ? "（" + retryAfter + " 秒后可重试）" : "";
+              setMessage((payload.error || "登录失败") + hint, "error");
+              return;
+            }
+            setMessage("登录成功，正在跳转…", "ok");
+            window.location.href = safeNext();
+          } catch (error) {
+            setMessage("网络异常，请稍后重试。", "error");
+          } finally {
+            submit.disabled = false;
+          }
+        });
+      })();
+    </script>
+  </body>
+</html>
