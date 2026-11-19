@@ -10,7 +10,7 @@
 node scripts/verify.mjs --task T-001
 [schema] PASS 20/20
 [scope] PASS 1/1
-[test_integrity] PASS 3/3
+[test_integrity] PASS 5/5
 [typecheck] PASS 1/1
 [lint] PASS 2/2
 [unit] PASS 1/1
